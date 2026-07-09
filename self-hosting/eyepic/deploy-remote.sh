@@ -10,6 +10,7 @@ git checkout production
 git pull --ff-only origin production
 
 COMMIT_SHA="$(git rev-parse --short=12 HEAD)"
+APP_VERSION="0.0.0-eyepic.$COMMIT_SHA"
 IMAGE_SHA_TAG="eyepic/twenty:$COMMIT_SHA"
 IMAGE_PRODUCTION_TAG="eyepic/twenty:production"
 
@@ -19,7 +20,7 @@ cp self-hosting/eyepic/docker-compose.yml "$RUNTIME_DIR/docker-compose.yml"
 echo "Building $IMAGE_SHA_TAG from cyprian/twenty..."
 docker build \
   --target twenty \
-  --build-arg "APP_VERSION=$COMMIT_SHA" \
+  --build-arg "APP_VERSION=$APP_VERSION" \
   -f packages/twenty-docker/twenty/Dockerfile \
   -t "$IMAGE_SHA_TAG" \
   -t "$IMAGE_PRODUCTION_TAG" \
