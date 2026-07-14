@@ -143,15 +143,11 @@ diff --git a/config/routes.rb b/config/routes.rb
 index 01dab6a..96131c4 100644
 --- a/config/routes.rb
 +++ b/config/routes.rb
-@@ -359,6 +359,11 @@ Rails.application.routes.draw do
+@@ -359,6 +359,7 @@ Rails.application.routes.draw do
                  get :orders
                end
              end
-+            resource :firebase_profile, controller: 'firebase_profile', only: [:show] do
-+              collection do
-+                get :show
-+              end
-+            end
++            get 'firebase_profile/show', to: 'firebase_profile#show'
              resource :linear, controller: 'linear', only: [] do
                collection do
                  delete :destroy
