@@ -110,7 +110,7 @@ diff --git a/config/integration/apps.yml b/config/integration/apps.yml
 index 1a45cc0..d8baece 100644
 --- a/config/integration/apps.yml
 +++ b/config/integration/apps.yml
-@@ -241,6 +241,13 @@ shopify:
+@@ -241,6 +241,14 @@ shopify:
    hook_type: account
    allow_multiple_hooks: false
  
@@ -120,6 +120,7 @@ index 1a45cc0..d8baece 100644
 +  i18n_key: firebase_profile
 +  hook_type: inbox
 +  allow_multiple_hooks: true
++  settings_form_schema: []
 +
  leadsquared:
    id: leadsquared
