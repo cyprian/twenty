@@ -478,77 +478,47 @@ diff --git a/app/javascript/dashboard/routes/dashboard/settings/integrations/Int
 index 89f0a78..3e3ec11 100644
 --- a/app/javascript/dashboard/routes/dashboard/settings/integrations/IntegrationItem.vue
 +++ b/app/javascript/dashboard/routes/dashboard/settings/integrations/IntegrationItem.vue
-@@ -46,4 +46,9 @@ const actionURL = computed(() =>
- const actionURL = computed(() =>
-   frontendURL(`accounts/${accountId.value}/settings/integrations/${props.id}`)
- );
-+const iconURL = dark => {
-+  const suffix = dark ? '-dark' : '';
-+  const version = props.id === 'firebase_profile' ? '?v=2' : '';
-+  return `/dashboard/images/integrations/${props.id}${suffix}.png${version}`;
-+};
- </script>
-@@ -56,9 +61,9 @@ const actionURL = computed(() =>
+@@ -56,9 +56,9 @@ const actionURL = computed(() =>
        <div class="flex h-12 w-12 mb-2">
          <img
 -          :src="`/dashboard/images/integrations/${id}.png`"
-+          :src="iconURL(false)"
++          :src="`/dashboard/images/integrations/${id}.png${id === 'firebase_profile' ? '?v=2' : ''}`"
            class="max-w-full rounded-md border border-n-weak shadow-sm block dark:hidden bg-n-alpha-3 dark:bg-n-alpha-2"
          />
          <img
 -          :src="`/dashboard/images/integrations/${id}-dark.png`"
-+          :src="iconURL(true)"
++          :src="`/dashboard/images/integrations/${id}-dark.png${id === 'firebase_profile' ? '?v=2' : ''}`"
            class="max-w-full rounded-md border border-n-weak shadow-sm hidden dark:block bg-n-alpha-3 dark:bg-n-alpha-2"
          />
 diff --git a/app/javascript/dashboard/routes/dashboard/settings/integrations/Integration.vue b/app/javascript/dashboard/routes/dashboard/settings/integrations/Integration.vue
 index 3088819..4aed084 100644
 --- a/app/javascript/dashboard/routes/dashboard/settings/integrations/Integration.vue
 +++ b/app/javascript/dashboard/routes/dashboard/settings/integrations/Integration.vue
-@@ -56,6 +56,11 @@ const confirmDeletion = () => {
- const confirmDeletion = () => {
-   closeDeletePopup();
-   deleteIntegration();
-   router.push({ name: 'settings_applications' });
- };
-+const iconURL = dark => {
-+  const suffix = dark ? '-dark' : '';
-+  const version = props.integrationId === 'firebase_profile' ? '?v=2' : '';
-+  return `/dashboard/images/integrations/${props.integrationId}${suffix}.png${version}`;
-+};
- </script>
-@@ -70,9 +75,9 @@ const confirmDeletion = () => {
+@@ -70,9 +70,9 @@ const confirmDeletion = () => {
        <div class="flex h-16 w-16 items-center justify-center flex-shrink-0">
          <img
 -          :src="`/dashboard/images/integrations/${integrationId}.png`"
-+          :src="iconURL(false)"
++          :src="`/dashboard/images/integrations/${integrationId}.png${integrationId === 'firebase_profile' ? '?v=2' : ''}`"
            class="max-w-full rounded-md border border-n-weak shadow-sm block dark:hidden bg-n-alpha-3 dark:bg-n-alpha-2"
          />
          <img
 -          :src="`/dashboard/images/integrations/${integrationId}-dark.png`"
-+          :src="iconURL(true)"
++          :src="`/dashboard/images/integrations/${integrationId}-dark.png${integrationId === 'firebase_profile' ? '?v=2' : ''}`"
            class="max-w-full rounded-md border border-n-weak shadow-sm hidden dark:block bg-n-alpha-3 dark:bg-n-alpha-2"
          />
 diff --git a/app/javascript/dashboard/routes/dashboard/settings/integrations/SingleIntegrationHooks.vue b/app/javascript/dashboard/routes/dashboard/settings/integrations/SingleIntegrationHooks.vue
 index 7e8a601..5e8e342 100644
 --- a/app/javascript/dashboard/routes/dashboard/settings/integrations/SingleIntegrationHooks.vue
 +++ b/app/javascript/dashboard/routes/dashboard/settings/integrations/SingleIntegrationHooks.vue
-@@ -20,2 +20,7 @@ const { integration, hasConnectedHooks } = useIntegrationHook(
- const { replaceInstallationName } = useBranding();
-+const iconURL = dark => {
-+  const suffix = dark ? '-dark' : '';
-+  const version = props.integrationId === 'firebase_profile' ? '?v=2' : '';
-+  return `/dashboard/images/integrations/${props.integrationId}${suffix}.png${version}`;
-+};
- </script>
-@@ -28,9 +33,9 @@ const { replaceInstallationName } = useBranding();
+@@ -28,9 +28,9 @@ const { replaceInstallationName } = useBranding();
        <div class="flex h-16 w-16 items-center justify-center">
          <img
 -          :src="`/dashboard/images/integrations/${integrationId}.png`"
-+          :src="iconURL(false)"
++          :src="`/dashboard/images/integrations/${integrationId}.png${integrationId === 'firebase_profile' ? '?v=2' : ''}`"
            class="max-w-full rounded-md border border-n-weak shadow-sm block dark:hidden bg-n-alpha-3 dark:bg-n-alpha-2"
          />
          <img
 -          :src="`/dashboard/images/integrations/${integrationId}-dark.png`"
-+          :src="iconURL(true)"
++          :src="`/dashboard/images/integrations/${integrationId}-dark.png${integrationId === 'firebase_profile' ? '?v=2' : ''}`"
            class="max-w-full rounded-md border border-n-weak shadow-sm hidden dark:block bg-n-alpha-3 dark:bg-n-alpha-2"
          />
