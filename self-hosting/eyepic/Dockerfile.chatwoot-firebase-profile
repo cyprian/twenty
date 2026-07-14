@@ -6,6 +6,10 @@ ENV NODE_OPTIONS="--max-old-space-size=4096"
 RUN apk add --no-cache patch
 COPY self-hosting/eyepic/chatwoot-firebase-profile.patch /tmp/chatwoot-firebase-profile.patch
 RUN patch --batch --forward -p1 -d /app < /tmp/chatwoot-firebase-profile.patch
+# Integration settings derive image URLs from the integration id. Provide both
+# variants before assets are compiled so they are published with the dashboard.
+RUN cp /app/public/dashboard/images/integrations/dashboard_apps.png /app/public/dashboard/images/integrations/firebase_profile.png \
+  && cp /app/public/dashboard/images/integrations/dashboard_apps-dark.png /app/public/dashboard/images/integrations/firebase_profile-dark.png
 RUN ln -s /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
   && npm install -g pnpm@10.2.0 \
   && pnpm install --frozen-lockfile --ignore-scripts \

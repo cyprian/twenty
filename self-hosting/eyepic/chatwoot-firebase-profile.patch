@@ -116,7 +116,7 @@ index 1a45cc0..d8baece 100644
  
 +firebase_profile:
 +  id: firebase_profile
-+  logo: google-translate.png
++  logo: firebase_profile.png
 +  i18n_key: firebase_profile
 +  hook_type: inbox
 +  allow_multiple_hooks: true
