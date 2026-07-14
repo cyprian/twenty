@@ -22,7 +22,7 @@ index 3081c29..65fe442 100644
        "SHARED_FILES": "Attachments"
      },
      "SHARED_FILES": {
-@@ -398,8 +399,17 @@
+@@ -398,8 +399,23 @@
          "PARTIALLY_FULFILLED": "Partially Fulfilled",
          "UNFULFILLED": "Unfulfilled"
        }
@@ -30,11 +30,17 @@ index 3081c29..65fe442 100644
 +    },
 +    "FIREBASE_PROFILE": {
 +      "CHECK": "Check app profile",
++      "LOADING": "Loading app profile…",
 +      "NO_EMAIL": "This contact has no email address.",
 +      "NOT_FOUND": "No Firebase user was found for this email.",
-+      "ACCOUNT": "Firebase account",
++      "FIREBASE_ID": "Firebase ID",
 +      "CREDITS": "Credits",
-+      "SUBSCRIPTION": "Subscription",
++      "AVAILABLE_CREDITS": "Available credits",
++      "USED_CREDITS": "Used credits",
++      "CREDIT_TRANSACTIONS": "Credit transactions",
++      "CURRENT_SUBSCRIPTION": "Current subscription",
++      "SUBSCRIPTION_TRANSACTIONS": "Subscription transactions",
++      "PHOTOS_THIS_PERIOD": "photos this period",
 +      "ERROR": "Unable to load app profile"
 +    }
    },
@@ -260,9 +266,9 @@ new file mode 100644
 index 0000000..87c2d7d
 --- /dev/null
 +++ b/app/javascript/dashboard/components/widgets/conversation/FirebaseProfile.vue
-@@ -0,0 +1,43 @@
+@@ -0,0 +1,113 @@
 +<script setup>
-+import { ref } from 'vue';
++import { computed, onMounted, ref } from 'vue';
 +import FirebaseProfileAPI from 'dashboard/api/integrations/firebaseProfile';
 +
 +const props = defineProps({
@@ -274,34 +280,104 @@ index 0000000..87c2d7d
 +const profile = ref(null);
 +const loading = ref(false);
 +const error = ref('');
++const showTransactions = ref(false);
++const transactionTitle = ref('');
++const selectedTransactions = ref([]);
++
++const credits = computed(() => profile.value?.credits?.data || {});
++const subscription = computed(() => profile.value?.subscription?.data || {});
++const creditTransactions = computed(() => credits.value.transactions || []);
++const subscriptionTransactions = computed(() => subscription.value.transactions || []);
 +
 +const checkProfile = async () => {
++  if (!props.email) return;
 +  loading.value = true;
 +  error.value = '';
 +  try {
 +    const { data } = await FirebaseProfileAPI.getProfile(props.conversationId, props.contactId);
 +    profile.value = data;
 +  } catch (e) {
-+    error.value = e.response?.data?.error || 'CONVERSATION_SIDEBAR.FIREBASE_PROFILE.ERROR';
++    error.value = e.response?.data?.error || 'Unable to load app profile';
 +  } finally {
 +    loading.value = false;
 +  }
 +};
++
++const openTransactions = (title, transactions) => {
++  transactionTitle.value = title;
++  selectedTransactions.value = [...transactions].sort(
++    (a, b) => (b.timestamp_millis || b.purchaseDateMillis || 0) - (a.timestamp_millis || a.purchaseDateMillis || 0)
++  );
++  showTransactions.value = true;
++};
++
++const transactionDate = transaction => {
++  const value = transaction.timestamp || transaction.purchaseDate || transaction.timestamp_millis || transaction.purchaseDateMillis;
++  return value ? new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value)) : '—';
++};
++
++const transactionLabel = transaction => transaction.reason || transaction.pack_marketing_title || transaction.productId || transaction.productIdentifier || transaction.product_id || transaction.description || '—';
++const transactionPlatform = transaction => (transaction.platform ? transaction.platform.toUpperCase() : '—');
++
++onMounted(checkProfile);
 +</script>
 +
 +<template>
-+  <div class="px-4 py-2 text-n-slate-12">
-+    <p v-if="!email" class="mb-2">{{ $t('CONVERSATION_SIDEBAR.FIREBASE_PROFILE.NO_EMAIL') }}</p>
-+    <woot-button v-else :is-loading="loading" @click="checkProfile">{{ $t('CONVERSATION_SIDEBAR.FIREBASE_PROFILE.CHECK') }}</woot-button>
-+    <p v-if="error" class="mt-2 text-n-ruby-11">{{ $t(error) }}</p>
-+    <div v-if="profile" class="mt-3 space-y-3 text-sm">
-+      <p v-if="!profile.auth?.found">{{ $t('CONVERSATION_SIDEBAR.FIREBASE_PROFILE.NOT_FOUND') }}</p>
-+      <template v-else>
-+        <div><p class="font-medium">{{ $t('CONVERSATION_SIDEBAR.FIREBASE_PROFILE.ACCOUNT') }}</p><p>{{ profile.auth.uid }}</p></div>
-+        <div><p class="font-medium">{{ $t('CONVERSATION_SIDEBAR.FIREBASE_PROFILE.CREDITS') }}</p><pre class="whitespace-pre-wrap">{{ JSON.stringify(profile.credits, null, 2) }}</pre></div>
-+        <div><p class="font-medium">{{ $t('CONVERSATION_SIDEBAR.FIREBASE_PROFILE.SUBSCRIPTION') }}</p><pre class="whitespace-pre-wrap">{{ JSON.stringify(profile.subscription, null, 2) }}</pre></div>
-+      </template>
++  <div class="px-4 py-3 text-sm text-n-slate-12">
++    <p v-if="!email" class="text-n-slate-11">{{ $t('CONVERSATION_SIDEBAR.FIREBASE_PROFILE.NO_EMAIL') }}</p>
++    <p v-else-if="loading" class="text-n-slate-11">{{ $t('CONVERSATION_SIDEBAR.FIREBASE_PROFILE.LOADING') }}</p>
++    <p v-else-if="error" class="text-n-ruby-11">{{ error }}</p>
++    <p v-else-if="profile && !profile.auth?.found" class="text-n-slate-11">{{ $t('CONVERSATION_SIDEBAR.FIREBASE_PROFILE.NOT_FOUND') }}</p>
++
++    <div v-else-if="profile" class="space-y-4">
++      <div class="rounded-lg bg-n-alpha-2 p-3">
++        <p class="text-xs text-n-slate-11">{{ $t('CONVERSATION_SIDEBAR.FIREBASE_PROFILE.FIREBASE_ID') }}</p>
++        <p class="mt-1 break-all font-mono text-xs">{{ profile.auth.uid }}</p>
++      </div>
++
++      <div class="grid grid-cols-2 gap-2">
++        <div class="rounded-lg bg-n-alpha-2 p-3">
++          <p class="text-xs text-n-slate-11">{{ $t('CONVERSATION_SIDEBAR.FIREBASE_PROFILE.AVAILABLE_CREDITS') }}</p>
++          <p class="mt-1 text-xl font-semibold">{{ credits.available_credits ?? '—' }}</p>
++        </div>
++        <div class="rounded-lg bg-n-alpha-2 p-3">
++          <p class="text-xs text-n-slate-11">{{ $t('CONVERSATION_SIDEBAR.FIREBASE_PROFILE.USED_CREDITS') }}</p>
++          <p class="mt-1 text-xl font-semibold">{{ credits.used_credits ?? '—' }}</p>
++        </div>
++      </div>
++
++      <button v-if="creditTransactions.length" class="w-full rounded-lg border border-n-weak px-3 py-2 text-left hover:bg-n-alpha-2" @click="openTransactions($t('CONVERSATION_SIDEBAR.FIREBASE_PROFILE.CREDIT_TRANSACTIONS'), creditTransactions)">
++        <span class="font-medium">{{ $t('CONVERSATION_SIDEBAR.FIREBASE_PROFILE.CREDIT_TRANSACTIONS') }}</span>
++        <span class="float-right text-n-slate-11">{{ creditTransactions.length }}</span>
++      </button>
++
++      <div class="rounded-lg bg-n-alpha-2 p-3">
++        <div class="flex items-center justify-between gap-2">
++          <p class="text-xs text-n-slate-11">{{ $t('CONVERSATION_SIDEBAR.FIREBASE_PROFILE.CURRENT_SUBSCRIPTION') }}</p>
++          <span class="rounded-full bg-n-alpha-3 px-2 py-0.5 text-xs font-medium">{{ subscription.status || '—' }}</span>
++        </div>
++        <p class="mt-2 font-medium">{{ subscription.product_id || '—' }}</p>
++        <p v-if="subscription.permissions" class="mt-1 text-xs text-n-slate-11">{{ subscription.permissions.photos_used_in_current_period ?? 0 }} / {{ subscription.permissions.photos_limit_per_period ?? '—' }} {{ $t('CONVERSATION_SIDEBAR.FIREBASE_PROFILE.PHOTOS_THIS_PERIOD') }}</p>
++      </div>
++
++      <button v-if="subscriptionTransactions.length" class="w-full rounded-lg border border-n-weak px-3 py-2 text-left hover:bg-n-alpha-2" @click="openTransactions($t('CONVERSATION_SIDEBAR.FIREBASE_PROFILE.SUBSCRIPTION_TRANSACTIONS'), subscriptionTransactions)">
++        <span class="font-medium">{{ $t('CONVERSATION_SIDEBAR.FIREBASE_PROFILE.SUBSCRIPTION_TRANSACTIONS') }}</span>
++        <span class="float-right text-n-slate-11">{{ subscriptionTransactions.length }}</span>
++      </button>
 +    </div>
++
++    <woot-modal v-model:show="showTransactions" :on-close="() => (showTransactions = false)" size="modal-big">
++      <woot-modal-header :header-title="transactionTitle" />
++      <div class="max-h-[65vh] overflow-y-auto px-6 pb-6">
++        <div v-for="transaction in selectedTransactions" :key="transaction.transaction_id || transaction.transactionIdentifier || transaction.timestamp_millis || transaction.purchaseDateMillis" class="border-b border-n-weak py-3 last:border-0">
++          <div class="flex items-start justify-between gap-3">
++            <div><p class="font-medium">{{ transactionLabel(transaction) }}</p><p class="mt-1 text-xs text-n-slate-11">{{ transactionDate(transaction) }}</p></div>
++            <span class="rounded bg-n-alpha-3 px-2 py-0.5 text-xs font-medium">{{ transactionPlatform(transaction) }}</span>
++          </div>
++          <p class="mt-2 text-xs text-n-slate-11"><span v-if="transaction.credits !== undefined">{{ transaction.credits }} {{ $t('CONVERSATION_SIDEBAR.FIREBASE_PROFILE.CREDITS') }}</span><span v-if="transaction.price"> · {{ transaction.price }}</span><span v-if="transaction.country"> · {{ transaction.country }}</span><span v-if="transaction.app_version"> · v{{ transaction.app_version }}</span></p>
++        </div>
++      </div>
++    </woot-modal>
 +  </div>
 +</template>
 diff --git a/spec/controllers/api/v1/accounts/integrations/firebase_profile_controller_spec.rb b/spec/controllers/api/v1/accounts/integrations/firebase_profile_controller_spec.rb
