@@ -74,6 +74,10 @@ services:
 
   firebase-profile:
     profiles: [firebase-profile]
+    # Docker Compose mounts file secrets as root-owned (0400). This internal
+    # service needs to read the credential, so run it as root; the secret is
+    # still read-only, never published on a host port, and stays 0600 on disk.
+    user: "0:0"
     build:
       context: ${CHATWOOT_BUILD_CONTEXT:?set CHATWOOT_BUILD_CONTEXT}/self-hosting/eyepic/firebase-profile-gateway
     environment:
