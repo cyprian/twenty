@@ -27,8 +27,6 @@ index 3081c29..65fe442 100644
          "UNFULFILLED": "Unfulfilled"
        }
 -    }
--  },
-+      }
 +    },
 +    "FIREBASE_PROFILE": {
 +      "CHECK": "Check app profile",
@@ -38,7 +36,8 @@ index 3081c29..65fe442 100644
 +      "CREDITS": "Credits",
 +      "SUBSCRIPTION": "Subscription",
 +      "ERROR": "Unable to load app profile"
-+    },
++    }
+   },
    "CONVERSATION_CUSTOM_ATTRIBUTES": {
      "ADD_BUTTON_TEXT": "Create attribute",
      "NO_RECORDS_FOUND": "No attributes found",
