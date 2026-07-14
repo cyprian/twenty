@@ -41,6 +41,17 @@ EOF
   chmod 600 "$RUNTIME_DIR/.env"
 fi
 
+if ! grep -q '^CHATWOOT_BUILD_CONTEXT=' "$RUNTIME_DIR/.env"; then
+  cat >>"$RUNTIME_DIR/.env" <<EOF
+CHATWOOT_BUILD_CONTEXT=$APP_DIR
+FIREBASE_PROFILE_ENABLED=false
+FIREBASE_PROFILE_GATEWAY_URL=http://firebase-profile:8080
+FIREBASE_PROFILE_GATEWAY_TOKEN=$(openssl rand -hex 32)
+FIREBASE_PROFILE_CREDENTIALS_FILE=$RUNTIME_DIR/firebase-service-account.json
+EOF
+  chmod 600 "$RUNTIME_DIR/.env"
+fi
+
 cp "$APP_DIR/self-hosting/eyepic/chatwoot-compose.yml" "$RUNTIME_DIR/docker-compose.yml"
 cp "$APP_DIR/self-hosting/eyepic/Caddyfile" /etc/caddy/Caddyfile
 caddy fmt --overwrite /etc/caddy/Caddyfile
@@ -48,9 +59,14 @@ caddy validate --config /etc/caddy/Caddyfile
 systemctl reload caddy
 
 cd "$RUNTIME_DIR"
-docker compose pull
+docker compose pull postgres redis
+docker compose build rails sidekiq
 docker compose run --rm rails bundle exec rails db:chatwoot_prepare
-docker compose up -d --remove-orphans
+if grep -q '^FIREBASE_PROFILE_ENABLED=true$' "$RUNTIME_DIR/.env"; then
+  docker compose --profile firebase-profile up -d --build --remove-orphans
+else
+  docker compose up -d --build --remove-orphans
+fi
 
 for _ in $(seq 1 60); do
   if curl -fsS http://127.0.0.1:3001/api >/dev/null; then

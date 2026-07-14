@@ -2,7 +2,10 @@ name: chatwoot
 
 services:
   rails:
-    image: chatwoot/chatwoot:${CHATWOOT_VERSION:?set CHATWOOT_VERSION}
+    image: eyepic/chatwoot-firebase-profile:${CHATWOOT_VERSION:?set CHATWOOT_VERSION}
+    build:
+      context: ${CHATWOOT_BUILD_CONTEXT:?set CHATWOOT_BUILD_CONTEXT}
+      dockerfile: self-hosting/eyepic/Dockerfile.chatwoot-firebase-profile
     env_file: .env
     volumes:
       - storage-data:/app/storage
@@ -22,7 +25,10 @@ services:
     restart: unless-stopped
 
   sidekiq:
-    image: chatwoot/chatwoot:${CHATWOOT_VERSION:?set CHATWOOT_VERSION}
+    image: eyepic/chatwoot-firebase-profile:${CHATWOOT_VERSION:?set CHATWOOT_VERSION}
+    build:
+      context: ${CHATWOOT_BUILD_CONTEXT:?set CHATWOOT_BUILD_CONTEXT}
+      dockerfile: self-hosting/eyepic/Dockerfile.chatwoot-firebase-profile
     env_file: .env
     volumes:
       - storage-data:/app/storage
@@ -66,7 +72,22 @@ services:
       retries: 20
     restart: unless-stopped
 
+  firebase-profile:
+    profiles: [firebase-profile]
+    build:
+      context: ${CHATWOOT_BUILD_CONTEXT:?set CHATWOOT_BUILD_CONTEXT}/self-hosting/eyepic/firebase-profile-gateway
+    environment:
+      FIREBASE_PROFILE_GATEWAY_TOKEN: ${FIREBASE_PROFILE_GATEWAY_TOKEN:?set FIREBASE_PROFILE_GATEWAY_TOKEN}
+      GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/firebase_profile_credentials
+    secrets:
+      - firebase_profile_credentials
+    restart: unless-stopped
+
 volumes:
   storage-data:
   postgres-data:
   redis-data:
+
+secrets:
+  firebase_profile_credentials:
+    file: ${FIREBASE_PROFILE_CREDENTIALS_FILE:?set FIREBASE_PROFILE_CREDENTIALS_FILE}
