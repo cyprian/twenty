@@ -358,3 +358,47 @@ index 0000000..388556d
 +    end
 +  end
 +end
+diff --git a/app/javascript/dashboard/i18n/locale/en/integrationApps.json b/app/javascript/dashboard/i18n/locale/en/integrationApps.json
+index 6b3ee32..ec6f8a1 100644
+--- a/app/javascript/dashboard/i18n/locale/en/integrationApps.json
++++ b/app/javascript/dashboard/i18n/locale/en/integrationApps.json
+@@ -48,6 +48,7 @@
+     },
+     "SIDEBAR_DESCRIPTION": {
+-      "DIALOGFLOW": "Dialogflow is a natural language processing platform for building conversational interfaces. Integrating it with {installationName} lets bots handle queries first and transfer them to agents when needed. It helps qualify leads and reduce agent workload by answering FAQs. To add Dialogflow, create a Service Account in Google Console and share the credentials. Refer to the docs for details"
++      "DIALOGFLOW": "Dialogflow is a natural language processing platform for building conversational interfaces. Integrating it with {installationName} lets bots handle queries first and transfer them to agents when needed. It helps qualify leads and reduce agent workload by answering FAQs. To add Dialogflow, create a Service Account in Google Console and share the credentials. Refer to the docs for details",
++      "FIREBASE_PROFILE": "Enable this integration for an inbox to look up the contact’s Firebase Auth account, credits, and subscription."
+     }
+   }
+ }
+diff --git a/app/javascript/dashboard/routes/dashboard/settings/integrations/MultipleIntegrationHooks.vue b/app/javascript/dashboard/routes/dashboard/settings/integrations/MultipleIntegrationHooks.vue
+index 8931ea4..555c0b9 100644
+--- a/app/javascript/dashboard/routes/dashboard/settings/integrations/MultipleIntegrationHooks.vue
++++ b/app/javascript/dashboard/routes/dashboard/settings/integrations/MultipleIntegrationHooks.vue
+@@ -76,5 +76,5 @@ const inboxName = hook => (hook.inbox ? hook.inbox.name : '');
+         $t(
+-          `INTEGRATION_APPS.SIDEBAR_DESCRIPTION.${integration.name.toUpperCase()}`,
++          `INTEGRATION_APPS.SIDEBAR_DESCRIPTION.${integration.id.toUpperCase()}`,
+           { installationName: globalConfig.installationName }
+         )
+       "
+diff --git a/app/javascript/dashboard/routes/dashboard/settings/integrations/NewHook.vue b/app/javascript/dashboard/routes/dashboard/settings/integrations/NewHook.vue
+index 997a850..0a0f2e1 100644
+--- a/app/javascript/dashboard/routes/dashboard/settings/integrations/NewHook.vue
++++ b/app/javascript/dashboard/routes/dashboard/settings/integrations/NewHook.vue
+@@ -38,9 +38,14 @@ export default {
+     ...mapGetters({
+       uiFlags: 'integrations/getUIFlags',
+       dialogFlowEnabledInboxes: 'inboxes/dialogFlowEnabledInboxes',
++      allInboxes: 'inboxes/getInboxes',
+     }),
+     inboxes() {
+-      return this.dialogFlowEnabledInboxes
++      const selectableInboxes = this.isIntegrationDialogflow
++        ? this.dialogFlowEnabledInboxes
++        : this.allInboxes;
++
++      return selectableInboxes
+         .filter(inbox => {
+           if (!this.isIntegrationDialogflow) {
+             return true;
