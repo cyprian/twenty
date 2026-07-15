@@ -144,10 +144,10 @@ index 000000000..8bd27f85e
 +export default new FirebaseProfileAPI();
 diff --git a/app/javascript/dashboard/components/widgets/conversation/EyePhotoData.vue b/app/javascript/dashboard/components/widgets/conversation/EyePhotoData.vue
 new file mode 100644
-index 000000000..662b0c725
+index 000000000..302a94ca9
 --- /dev/null
 +++ b/app/javascript/dashboard/components/widgets/conversation/EyePhotoData.vue
-@@ -0,0 +1,163 @@
+@@ -0,0 +1,175 @@
 +<script setup>
 +import { computed, onMounted, ref } from 'vue';
 +import EyePhotoAPI from 'dashboard/api/integrations/eyePhoto';
@@ -161,24 +161,19 @@ index 000000000..662b0c725
 +const data = ref(null);
 +const loading = ref(false);
 +const error = ref('');
-+const failedLogoIds = ref([]);
++const showUsers = ref(false);
++const selectedStudio = ref(null);
 +
 +const studios = computed(() => data.value?.studios || []);
-+const studioInitials = studio =>
-+  (studio.name || '')
-+    .split(/\s+/)
-+    .filter(Boolean)
-+    .slice(0, 2)
-+    .map(word => word[0])
-+    .join('')
-+    .toUpperCase() || 'EP';
 +const studioPhotos = studio =>
 +  Number(studio.photos_count || 0).toLocaleString();
-+const hasUsableLogo = studio =>
-+  studio.logo_url && !failedLogoIds.value.includes(studio.id);
-+const markLogoFailed = studioId => {
-+  if (!failedLogoIds.value.includes(studioId))
-+    failedLogoIds.value.push(studioId);
++const selectedUsers = computed(() => selectedStudio.value?.users || []);
++const studioAdminUrl = studio =>
++  `https://eye.photo/admin/studios/${studio.id}/login`;
++
++const openUsers = studio => {
++  selectedStudio.value = studio;
++  showUsers.value = true;
 +};
 +
 +const loadStudios = async () => {
@@ -206,10 +201,7 @@ index 000000000..662b0c725
 +<template>
 +  <div class="px-4 py-3 text-sm text-n-slate-12">
 +    <div class="mb-3 flex items-center justify-between gap-3">
-+      <p v-if="data?.email" class="truncate text-xs text-n-slate-11">
-+        {{ data.email }}
-+      </p>
-+      <span v-else />
++      <span />
 +      <button
 +        v-if="email"
 +        class="rounded px-2 py-1 text-xs font-medium text-n-brand hover:bg-n-alpha-2 disabled:cursor-not-allowed disabled:opacity-60"
@@ -238,77 +230,97 @@ index 000000000..662b0c725
 +        :key="studio.id"
 +        class="overflow-hidden rounded-lg border border-n-weak bg-n-alpha-1"
 +      >
-+        <div class="flex gap-3 p-3">
-+          <img
-+            v-if="hasUsableLogo(studio)"
-+            :src="studio.logo_url"
-+            :alt="`${studio.name} logo`"
-+            class="h-10 w-10 flex-none rounded-lg border border-n-weak object-cover"
-+            @error="markLogoFailed(studio.id)"
-+          />
-+          <div
-+            v-else
-+            class="flex h-10 w-10 flex-none items-center justify-center rounded-lg bg-n-brand/10 text-xs font-semibold text-n-brand"
-+            aria-hidden="true"
++        <div class="space-y-3 p-3">
++          <div>
++            <p class="text-xs text-n-slate-11">
++              {{ $t('CONVERSATION_SIDEBAR.EYE_PHOTO.STUDIO') }}:
++            </p>
++            <p class="mt-0.5 truncate font-semibold">
++              {{ studio.name || '—' }}
++            </p>
++          </div>
++          <div>
++            <p class="text-xs text-n-slate-11">
++              {{ $t('CONVERSATION_SIDEBAR.EYE_PHOTO.STATUS') }}:
++            </p>
++            <p class="mt-0.5 capitalize">{{ studio.status || '—' }}</p>
++          </div>
++          <div>
++            <p class="text-xs text-n-slate-11">
++              {{ $t('CONVERSATION_SIDEBAR.EYE_PHOTO.PLAN') }}:
++            </p>
++            <p class="mt-0.5">{{ studio.plan?.name || '—' }}</p>
++          </div>
++        </div>
++
++        <div class="space-y-2 border-t border-n-weak bg-n-alpha-2 px-3 py-2">
++          <div class="flex items-center justify-between gap-3">
++            <span class="text-xs text-n-slate-11">
++              {{ $t('CONVERSATION_SIDEBAR.EYE_PHOTO.PHOTOS') }}:
++            </span>
++            <span class="font-semibold">{{ studioPhotos(studio) }}</span>
++          </div>
++          <div class="flex items-center justify-between gap-3">
++            <span class="text-xs text-n-slate-11">
++              {{ $t('CONVERSATION_SIDEBAR.EYE_PHOTO.USERS') }}:
++            </span>
++            <span class="font-semibold">{{ studio.users?.length || 0 }}</span>
++          </div>
++        </div>
++
++        <div class="flex gap-2 border-t border-n-weak p-3">
++          <button
++            class="flex-1 rounded border border-n-weak px-3 py-2 text-xs font-medium text-n-brand hover:bg-n-alpha-2 disabled:cursor-not-allowed disabled:opacity-60"
++            :disabled="!studio.users?.length"
++            type="button"
++            @click="openUsers(studio)"
 +          >
-+            {{ studioInitials(studio) }}
-+          </div>
-+          <div class="min-w-0 flex-1">
-+            <div class="flex items-start justify-between gap-2">
-+              <p class="truncate font-semibold">{{ studio.name }}</p>
-+              <span
-+                class="rounded-full bg-n-alpha-3 px-2 py-0.5 text-xs font-medium capitalize text-n-slate-11"
-+                >{{ studio.status || '—' }}</span
-+              >
-+            </div>
-+            <p
-+              v-if="studio.plan?.name"
-+              class="mt-0.5 truncate text-xs text-n-slate-11"
-+            >
-+              {{ studio.plan.name }}
-+            </p>
-+          </div>
++            {{ $t('CONVERSATION_SIDEBAR.EYE_PHOTO.SHOW_USERS') }}
++          </button>
++          <a
++            :href="studioAdminUrl(studio)"
++            class="flex-1 rounded bg-n-brand px-3 py-2 text-center text-xs font-medium text-white hover:bg-n-brand/90"
++            rel="noopener noreferrer"
++            target="_blank"
++          >
++            {{ $t('CONVERSATION_SIDEBAR.EYE_PHOTO.VIEW_IN_EYE_PHOTO') }}
++          </a>
 +        </div>
-+
-+        <div class="grid grid-cols-2 border-t border-n-weak bg-n-alpha-2">
-+          <div class="border-r border-n-weak px-3 py-2">
-+            <p class="text-xs text-n-slate-11">
-+              {{ $t('CONVERSATION_SIDEBAR.EYE_PHOTO.PHOTOS') }}
-+            </p>
-+            <p class="mt-0.5 font-semibold">{{ studioPhotos(studio) }}</p>
-+          </div>
-+          <div class="px-3 py-2">
-+            <p class="text-xs text-n-slate-11">
-+              {{ studio.users?.length || 0 }}
-+              {{
-+                $t(
-+                  `CONVERSATION_SIDEBAR.EYE_PHOTO.${studio.users?.length === 1 ? 'USER' : 'USERS'}`
-+                )
-+              }}
-+            </p>
-+            <p class="mt-0.5 truncate text-xs font-medium">
-+              {{ studio.users?.[0]?.name || '—' }}
-+            </p>
-+          </div>
-+        </div>
-+
-+        <details
-+          v-if="studio.users?.length"
-+          class="border-t border-n-weak px-3 py-2"
-+        >
-+          <summary class="cursor-pointer text-xs font-medium text-n-brand">
-+            {{ $t('CONVERSATION_SIDEBAR.EYE_PHOTO.STUDIO') }}
-+            {{ $t('CONVERSATION_SIDEBAR.EYE_PHOTO.USERS') }}
-+          </summary>
-+          <ul class="mt-2 space-y-2">
-+            <li v-for="user in studio.users" :key="user.email" class="min-w-0">
-+              <p class="truncate text-xs font-medium">{{ user.name || '—' }}</p>
-+              <p class="truncate text-xs text-n-slate-11">{{ user.email }}</p>
-+            </li>
-+          </ul>
-+        </details>
 +      </article>
 +    </div>
++
++    <woot-modal
++      v-model:show="showUsers"
++      :on-close="() => (showUsers = false)"
++      size="modal-small"
++    >
++      <woot-modal-header
++        :header-title="`${$t('CONVERSATION_SIDEBAR.EYE_PHOTO.USERS')} · ${selectedStudio?.name || ''}`"
++      />
++      <div class="max-h-[60vh] space-y-2 overflow-y-auto px-6 pb-6">
++        <div
++          v-for="user in selectedUsers"
++          :key="user.email"
++          class="flex items-center justify-between gap-3 rounded-lg border border-n-weak p-3"
++        >
++          <div class="min-w-0">
++            <p class="truncate font-medium">{{ user.name || '—' }}</p>
++            <p class="truncate text-xs text-n-slate-11">{{ user.email }}</p>
++          </div>
++          <a
++            :aria-label="
++              $t('CONVERSATION_SIDEBAR.EYE_PHOTO.EMAIL_USER', {
++                name: user.name || user.email,
++              })
++            "
++            :href="`mailto:${user.email}`"
++            class="rounded p-2 text-n-brand hover:bg-n-alpha-2"
++          >
++            <fluent-icon icon="mail" size="18" />
++          </a>
++        </div>
++      </div>
++    </woot-modal>
 +  </div>
 +</template>
 diff --git a/app/javascript/dashboard/components/widgets/conversation/FirebaseProfile.vue b/app/javascript/dashboard/components/widgets/conversation/FirebaseProfile.vue
@@ -440,7 +452,7 @@ index 4f015e1d8..d9257aacb 100644
 +  { name: 'eye_photo' },
  ]);
 diff --git a/app/javascript/dashboard/i18n/locale/en/conversation.json b/app/javascript/dashboard/i18n/locale/en/conversation.json
-index 3081c29e8..fd2bee7a7 100644
+index 3081c29e8..be83e74bb 100644
 --- a/app/javascript/dashboard/i18n/locale/en/conversation.json
 +++ b/app/javascript/dashboard/i18n/locale/en/conversation.json
 @@ -369,2 +369,4 @@
@@ -448,7 +460,7 @@ index 3081c29e8..fd2bee7a7 100644
 +      "FIREBASE_PROFILE": "App profile",
 +      "EYE_PHOTO": "Eye.photo data",
        "SHARED_FILES": "Attachments"
-@@ -400,2 +402,28 @@
+@@ -400,2 +402,33 @@
        }
 +    },
 +    "FIREBASE_PROFILE": {
@@ -472,9 +484,14 @@ index 3081c29e8..fd2bee7a7 100644
 +      "NO_EMAIL": "This contact has no email address.",
 +      "NOT_FOUND": "No Eye.photo studio is associated with this email.",
 +      "STUDIO": "Studio",
++      "STATUS": "Status",
++      "PLAN": "Plan",
 +      "PHOTOS": "Photos",
 +      "USERS": "users",
 +      "USER": "user",
++      "SHOW_USERS": "Show users",
++      "EMAIL_USER": "Email {name}",
++      "VIEW_IN_EYE_PHOTO": "View in Eye.photo",
 +      "ERROR": "Unable to load Eye.photo data."
      }
 diff --git a/app/javascript/dashboard/i18n/locale/en/integrationApps.json b/app/javascript/dashboard/i18n/locale/en/integrationApps.json
