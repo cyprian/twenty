@@ -144,12 +144,12 @@ index 000000000..8bd27f85e
 +export default new FirebaseProfileAPI();
 diff --git a/app/javascript/dashboard/components/widgets/conversation/EyePhotoData.vue b/app/javascript/dashboard/components/widgets/conversation/EyePhotoData.vue
 new file mode 100644
-index 000000000..302a94ca9
+index 000000000..27afc7512
 --- /dev/null
 +++ b/app/javascript/dashboard/components/widgets/conversation/EyePhotoData.vue
-@@ -0,0 +1,175 @@
+@@ -0,0 +1,188 @@
 +<script setup>
-+import { computed, onMounted, ref } from 'vue';
++import { computed, ref, watch } from 'vue';
 +import EyePhotoAPI from 'dashboard/api/integrations/eyePhoto';
 +
 +const props = defineProps({
@@ -163,6 +163,7 @@ index 000000000..302a94ca9
 +const error = ref('');
 +const showUsers = ref(false);
 +const selectedStudio = ref(null);
++let latestRequestId = 0;
 +
 +const studios = computed(() => data.value?.studios || []);
 +const studioPhotos = studio =>
@@ -177,25 +178,37 @@ index 000000000..302a94ca9
 +};
 +
 +const loadStudios = async () => {
-+  if (!props.email || loading.value) return;
++  const requestId = ++latestRequestId;
++  data.value = null;
++  error.value = '';
++  selectedStudio.value = null;
++  showUsers.value = false;
++
++  if (!props.email) {
++    loading.value = false;
++    return;
++  }
 +
 +  loading.value = true;
-+  error.value = '';
 +  try {
 +    const { data: response } = await EyePhotoAPI.getStudios(
 +      props.conversationId,
 +      props.contactId
 +    );
-+    data.value = response;
++    if (requestId === latestRequestId) data.value = response;
 +  } catch (requestError) {
-+    error.value =
-+      requestError.response?.data?.error || 'Unable to load Eye.photo data.';
++    if (requestId === latestRequestId) {
++      error.value =
++        requestError.response?.data?.error || 'Unable to load Eye.photo data.';
++    }
 +  } finally {
-+    loading.value = false;
++    if (requestId === latestRequestId) loading.value = false;
 +  }
 +};
 +
-+onMounted(loadStudios);
++watch(() => [props.conversationId, props.contactId, props.email], loadStudios, {
++  immediate: true,
++});
 +</script>
 +
 +<template>
