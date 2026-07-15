@@ -78,6 +78,7 @@ cd "$RUNTIME_DIR"
 docker compose pull postgres redis
 docker compose build rails sidekiq
 docker compose run --rm rails bundle exec rails db:chatwoot_prepare
+docker compose run --rm rails bundle exec rails runner "InstallationConfig.where(name: 'INSTALLATION_NAME').update_all(value: 'Eyepic Support'); InstallationConfig.where(name: %w[LOGO LOGO_DARK LOGO_THUMBNAIL]).update_all(value: '/favicon-512x512.png'); GlobalConfig.clear_cache"
 if grep -q '^FIREBASE_PROFILE_ENABLED=true$' "$RUNTIME_DIR/.env"; then
   docker compose --profile firebase-profile up -d --build --remove-orphans
 else
