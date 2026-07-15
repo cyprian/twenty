@@ -52,6 +52,18 @@ EOF
   chmod 600 "$RUNTIME_DIR/.env"
 fi
 
+# Integration hook access tokens (including the per-inbox Eye.photo admin key)
+# use Active Record Encryption when all three values are configured. Add them
+# independently so existing Chatwoot deployments are upgraded safely as well.
+if ! grep -q '^ACTIVE_RECORD_ENCRYPTION_PRIMARY_KEY=' "$RUNTIME_DIR/.env"; then
+  cat >>"$RUNTIME_DIR/.env" <<EOF
+ACTIVE_RECORD_ENCRYPTION_PRIMARY_KEY=$(openssl rand -base64 36 | tr -dc 'A-Za-z0-9' | head -c 32)
+ACTIVE_RECORD_ENCRYPTION_DETERMINISTIC_KEY=$(openssl rand -base64 36 | tr -dc 'A-Za-z0-9' | head -c 32)
+ACTIVE_RECORD_ENCRYPTION_KEY_DERIVATION_SALT=$(openssl rand -base64 36 | tr -dc 'A-Za-z0-9' | head -c 32)
+EOF
+  chmod 600 "$RUNTIME_DIR/.env"
+fi
+
 cp "$APP_DIR/self-hosting/eyepic/chatwoot-compose.yml" "$RUNTIME_DIR/docker-compose.yml"
 cp "$APP_DIR/self-hosting/eyepic/Caddyfile" /etc/caddy/Caddyfile
 caddy fmt --overwrite /etc/caddy/Caddyfile

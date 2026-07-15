@@ -1,165 +1,42 @@
-diff --git a/app/javascript/dashboard/composables/useUISettings.js b/app/javascript/dashboard/composables/useUISettings.js
-index 4f015e1..a1ce723 100644
---- a/app/javascript/dashboard/composables/useUISettings.js
-+++ b/app/javascript/dashboard/composables/useUISettings.js
-@@ -12,6 +12,7 @@ export const DEFAULT_CONVERSATION_SIDEBAR_ITEMS_ORDER = Object.freeze([
-   { name: 'conversation_participants' },
-   { name: 'linear_issues' },
-   { name: 'shopify_orders' },
-+  { name: 'firebase_profile' },
- ]);
- 
- export const DEFAULT_CONTACT_SIDEBAR_ITEMS_ORDER = Object.freeze([
-diff --git a/app/javascript/dashboard/i18n/locale/en/conversation.json b/app/javascript/dashboard/i18n/locale/en/conversation.json
-index 3081c29..65fe442 100644
---- a/app/javascript/dashboard/i18n/locale/en/conversation.json
-+++ b/app/javascript/dashboard/i18n/locale/en/conversation.json
-@@ -367,6 +367,7 @@
-       "MACROS": "Macros",
-       "LINEAR_ISSUES": "Linked Linear Issues",
-       "SHOPIFY_ORDERS": "Shopify Orders",
-+      "FIREBASE_PROFILE": "App profile",
-       "SHARED_FILES": "Attachments"
-     },
-     "SHARED_FILES": {
-@@ -398,8 +399,23 @@
-         "PARTIALLY_FULFILLED": "Partially Fulfilled",
-         "UNFULFILLED": "Unfulfilled"
-       }
--    }
-+    },
-+    "FIREBASE_PROFILE": {
-+      "CHECK": "Check app profile",
-+      "LOADING": "Loading app profile…",
-+      "NO_EMAIL": "This contact has no email address.",
-+      "NOT_FOUND": "No Firebase user was found for this email.",
-+      "FIREBASE_ID": "Firebase ID",
-+      "CREDITS": "Credits",
-+      "AVAILABLE_CREDITS": "Available credits",
-+      "USED_CREDITS": "Used credits",
-+      "CREDIT_TRANSACTIONS": "Credit transactions",
-+      "CURRENT_SUBSCRIPTION": "Current subscription",
-+      "SUBSCRIPTION_TRANSACTIONS": "Subscription transactions",
-+      "PHOTOS_THIS_PERIOD": "photos this period",
-+      "ERROR": "Unable to load app profile"
-+    }
-   },
-   "CONVERSATION_CUSTOM_ATTRIBUTES": {
-     "ADD_BUTTON_TEXT": "Create attribute",
-     "NO_RECORDS_FOUND": "No attributes found",
-diff --git a/app/javascript/dashboard/routes/dashboard/conversation/ContactPanel.vue b/app/javascript/dashboard/routes/dashboard/conversation/ContactPanel.vue
-index fe95f9e..408be23 100644
---- a/app/javascript/dashboard/routes/dashboard/conversation/ContactPanel.vue
-+++ b/app/javascript/dashboard/routes/dashboard/conversation/ContactPanel.vue
-@@ -21,6 +21,7 @@ import SharedFiles from './SharedFiles.vue';
- import Draggable from 'vuedraggable';
- import MacrosList from './Macros/List.vue';
- import ShopifyOrdersList from 'dashboard/components/widgets/conversation/ShopifyOrdersList.vue';
-+import FirebaseProfile from 'dashboard/components/widgets/conversation/FirebaseProfile.vue';
- import SidebarActionsHeader from 'dashboard/components-next/SidebarActionsHeader.vue';
- import LinearIssuesList from 'dashboard/components/widgets/conversation/linear/IssuesList.vue';
- import LinearSetupCTA from 'dashboard/components/widgets/conversation/linear/LinearSetupCTA.vue';
-@@ -54,6 +55,16 @@ const shopifyIntegration = useFunctionGetter(
- const isShopifyFeatureEnabled = computed(
-   () => shopifyIntegration.value.enabled
- );
-+const firebaseProfileIntegration = useFunctionGetter(
-+  'integrations/getIntegration',
-+  'firebase_profile'
-+);
-+const isFirebaseProfileEnabled = computed(
-+  () =>
-+    firebaseProfileIntegration.value?.hooks?.some(
-+      hook => hook.status && hook.inbox?.id === props.inboxId
-+    )
-+);
- 
- const { isCloudFeatureEnabled } = useAccount();
- 
-@@ -128,6 +139,7 @@ onMounted(() => {
-   store.dispatch('attributes/get', 0);
-   // Load integrations to ensure linear integration state is available
-   store.dispatch('integrations/get', 'linear');
-+  store.dispatch('integrations/get', 'firebase_profile');
- });
- </script>
- 
-@@ -286,6 +298,26 @@ onMounted(() => {
-               <ShopifyOrdersList :contact-id="contactId" />
-             </AccordionItem>
-           </div>
-+          <div
-+            v-else-if="
-+              element.name === 'firebase_profile' && isFirebaseProfileEnabled
-+            "
-+          >
-+            <AccordionItem
-+              :title="$t('CONVERSATION_SIDEBAR.ACCORDION.FIREBASE_PROFILE')"
-+              :is-open="isContactSidebarItemOpen('is_firebase_profile_open')"
-+              compact
-+              @toggle="
-+                value => toggleSidebarUIState('is_firebase_profile_open', value)
-+              "
-+            >
-+              <FirebaseProfile
-+                :conversation-id="conversationId"
-+                :contact-id="contactId"
-+                :email="contact?.email"
-+              />
-+            </AccordionItem>
-+          </div>
-           <div v-else-if="element.name === 'contact_notes'">
-             <AccordionItem
-               :title="$t('CONVERSATION_SIDEBAR.ACCORDION.CONTACT_NOTES')"
-diff --git a/config/integration/apps.yml b/config/integration/apps.yml
-index 1a45cc0..d8baece 100644
---- a/config/integration/apps.yml
-+++ b/config/integration/apps.yml
-@@ -241,6 +241,14 @@ shopify:
-   hook_type: account
-   allow_multiple_hooks: false
- 
-+firebase_profile:
-+  id: firebase_profile
-+  logo: firebase_profile.png
-+  i18n_key: firebase_profile
-+  hook_type: inbox
-+  allow_multiple_hooks: true
-+  settings_form_schema: []
+diff --git a/app/controllers/api/v1/accounts/integrations/eye_photo_controller.rb b/app/controllers/api/v1/accounts/integrations/eye_photo_controller.rb
+new file mode 100644
+index 000000000..9547ef625
+--- /dev/null
++++ b/app/controllers/api/v1/accounts/integrations/eye_photo_controller.rb
+@@ -0,0 +1,30 @@
++class Api::V1::Accounts::Integrations::EyePhotoController < Api::V1::Accounts::BaseController
++  before_action :fetch_conversation
++  before_action :fetch_contact
++  before_action :ensure_integration_enabled
 +
- leadsquared:
-   id: leadsquared
-   feature_flag: crm_integration
-diff --git a/config/locales/en.yml b/config/locales/en.yml
-index dc2b4d3..492fb59 100644
---- a/config/locales/en.yml
-+++ b/config/locales/en.yml
-@@ -378,6 +378,10 @@ en:
-       name: 'Shopify'
-       short_description: 'Access order details and customer data from your Shopify store.'
-       description: 'Connect your Shopify store to access order details, customer information, and product data directly within your conversations and helps your support team provide faster, more contextual assistance to your customers.'
-+    firebase_profile:
-+      name: 'Firebase Profile'
-+      short_description: 'Look up an app user’s Firebase profile, credits, and subscription from an enabled inbox.'
-+      description: 'Connect an inbox to securely look up the Firebase Auth account and associated credits and subscription documents for the conversation contact.'
-     leadsquared:
-       name: 'LeadSquared'
-       short_description: 'Sync your contacts and conversations with LeadSquared CRM.'
-diff --git a/config/routes.rb b/config/routes.rb
-index 01dab6a..96131c4 100644
---- a/config/routes.rb
-+++ b/config/routes.rb
-@@ -359,6 +359,7 @@ Rails.application.routes.draw do
-                 get :orders
-               end
-             end
-+            get 'firebase_profile/show', to: 'firebase_profile#show'
-             resource :linear, controller: 'linear', only: [] do
-               collection do
-                 delete :destroy
++  def show
++    return render json: { error: 'Contact email is required' }, status: :unprocessable_entity if @contact.email.blank?
++
++    render json: EyePhotoClient.new.lookup(email: @contact.email, api_key: @hook.access_token)
++  rescue EyePhotoClient::UnavailableError => e
++    render json: { error: e.message }, status: :bad_gateway
++  end
++
++  private
++
++  def fetch_conversation
++    @conversation = Current.account.conversations.find(params[:conversation_id])
++  end
++
++  def fetch_contact
++    @contact = Current.account.contacts.find(params[:contact_id])
++    return if @conversation.contact_id == @contact.id
++
++    render json: { error: 'Contact does not belong to this conversation' }, status: :unprocessable_entity
++  end
++
++  def ensure_integration_enabled
++    @hook = Current.account.hooks.enabled.find_by!(app_id: 'eye_photo', inbox_id: @conversation.inbox_id)
++  end
++end
 diff --git a/app/controllers/api/v1/accounts/integrations/firebase_profile_controller.rb b/app/controllers/api/v1/accounts/integrations/firebase_profile_controller.rb
 new file mode 100644
-index 0000000..099baec
+index 000000000..099baecf2
 --- /dev/null
 +++ b/app/controllers/api/v1/accounts/integrations/firebase_profile_controller.rb
 @@ -0,0 +1,31 @@
@@ -194,53 +71,57 @@ index 0000000..099baec
 +    Current.account.hooks.enabled.find_by!(app_id: 'firebase_profile', inbox_id: @conversation.inbox_id)
 +  end
 +end
-diff --git a/app/services/firebase_profile_gateway.rb b/app/services/firebase_profile_gateway.rb
+diff --git a/app/controllers/api/v1/accounts/integrations/hooks_controller.rb b/app/controllers/api/v1/accounts/integrations/hooks_controller.rb
+index 087a9b78d..27256ca11 100644
+--- a/app/controllers/api/v1/accounts/integrations/hooks_controller.rb
++++ b/app/controllers/api/v1/accounts/integrations/hooks_controller.rb
+@@ -5,3 +5,3 @@ class Api::V1::Accounts::Integrations::HooksController < Api::V1::Accounts::Base
+   def create
+-    @hook = Current.account.hooks.create!(permitted_params)
++    @hook = Current.account.hooks.create!(eye_photo_credentials(permitted_params))
+   end
+@@ -44,2 +44,15 @@ class Api::V1::Accounts::Integrations::HooksController < Api::V1::Accounts::Base
+   end
++
++  # Eye.photo's generic integration form submits the key as a setting. Move it
++  # to the hook's encrypted token column before persistence so it cannot be
++  # returned by the integrations API or stored in the JSON settings column.
++  def eye_photo_credentials(hook_params)
++    return hook_params unless hook_params[:app_id] == 'eye_photo'
++
++    api_key = hook_params[:settings]&.delete(:api_key)
++    raise ActionController::ParameterMissing, :api_key if api_key.blank?
++
++    hook_params[:access_token] = api_key if api_key.present?
++    hook_params
++  end
+ end
+diff --git a/app/javascript/dashboard/api/integrations/eyePhoto.js b/app/javascript/dashboard/api/integrations/eyePhoto.js
 new file mode 100644
-index 0000000..c87b471
+index 000000000..192058492
 --- /dev/null
-+++ b/app/services/firebase_profile_gateway.rb
-@@ -0,0 +1,38 @@
-+require 'json'
-+require 'net/http'
-+require 'uri'
++++ b/app/javascript/dashboard/api/integrations/eyePhoto.js
+@@ -0,0 +1,17 @@
++/* global axios */
 +
-+class FirebaseProfileGateway
-+  class UnavailableError < StandardError; end
++import ApiClient from '../ApiClient';
 +
-+  def lookup(email)
-+    uri = URI.join(url, '/v1/profile')
-+    request = Net::HTTP::Post.new(uri)
-+    request['Authorization'] = "Bearer #{token}"
-+    request['Content-Type'] = 'application/json'
-+    request.body = { email: email }.to_json
++class EyePhotoAPI extends ApiClient {
++  constructor() {
++    super('integrations/eye_photo', { accountScoped: true });
++  }
 +
-+    response = Net::HTTP.start(uri.host, uri.port, use_ssl: uri.scheme == 'https', open_timeout: 2, read_timeout: 8) do |http|
-+      http.request(request)
-+    end
-+    raise UnavailableError, 'Firebase profile service is unavailable' unless response.is_a?(Net::HTTPSuccess)
++  getStudios(conversationId, contactId) {
++    return axios.get(`${this.url}/show`, {
++      params: { conversation_id: conversationId, contact_id: contactId },
++    });
++  }
++}
 +
-+    JSON.parse(response.body)
-+  rescue SocketError, Timeout::Error, Errno::ECONNREFUSED, JSON::ParserError => e
-+    raise UnavailableError, "Firebase profile service is unavailable: #{e.message}"
-+  end
-+
-+  private
-+
-+  def url
-+    ENV.fetch('FIREBASE_PROFILE_GATEWAY_URL')
-+  rescue KeyError
-+    raise UnavailableError, 'Firebase profile integration is not configured'
-+  end
-+
-+  def token
-+    ENV.fetch('FIREBASE_PROFILE_GATEWAY_TOKEN')
-+  rescue KeyError
-+    raise UnavailableError, 'Firebase profile integration is not configured'
-+  end
-+end
++export default new EyePhotoAPI();
 diff --git a/app/javascript/dashboard/api/integrations/firebaseProfile.js b/app/javascript/dashboard/api/integrations/firebaseProfile.js
 new file mode 100644
-index 0000000..8bd27f8
+index 000000000..8bd27f85e
 --- /dev/null
 +++ b/app/javascript/dashboard/api/integrations/firebaseProfile.js
 @@ -0,0 +1,17 @@
@@ -261,9 +142,178 @@ index 0000000..8bd27f8
 +}
 +
 +export default new FirebaseProfileAPI();
+diff --git a/app/javascript/dashboard/components/widgets/conversation/EyePhotoData.vue b/app/javascript/dashboard/components/widgets/conversation/EyePhotoData.vue
+new file mode 100644
+index 000000000..662b0c725
+--- /dev/null
++++ b/app/javascript/dashboard/components/widgets/conversation/EyePhotoData.vue
+@@ -0,0 +1,163 @@
++<script setup>
++import { computed, onMounted, ref } from 'vue';
++import EyePhotoAPI from 'dashboard/api/integrations/eyePhoto';
++
++const props = defineProps({
++  conversationId: { type: [Number, String], required: true },
++  contactId: { type: [Number, String], required: true },
++  email: { type: String, default: '' },
++});
++
++const data = ref(null);
++const loading = ref(false);
++const error = ref('');
++const failedLogoIds = ref([]);
++
++const studios = computed(() => data.value?.studios || []);
++const studioInitials = studio =>
++  (studio.name || '')
++    .split(/\s+/)
++    .filter(Boolean)
++    .slice(0, 2)
++    .map(word => word[0])
++    .join('')
++    .toUpperCase() || 'EP';
++const studioPhotos = studio =>
++  Number(studio.photos_count || 0).toLocaleString();
++const hasUsableLogo = studio =>
++  studio.logo_url && !failedLogoIds.value.includes(studio.id);
++const markLogoFailed = studioId => {
++  if (!failedLogoIds.value.includes(studioId))
++    failedLogoIds.value.push(studioId);
++};
++
++const loadStudios = async () => {
++  if (!props.email || loading.value) return;
++
++  loading.value = true;
++  error.value = '';
++  try {
++    const { data: response } = await EyePhotoAPI.getStudios(
++      props.conversationId,
++      props.contactId
++    );
++    data.value = response;
++  } catch (requestError) {
++    error.value =
++      requestError.response?.data?.error || 'Unable to load Eye.photo data.';
++  } finally {
++    loading.value = false;
++  }
++};
++
++onMounted(loadStudios);
++</script>
++
++<template>
++  <div class="px-4 py-3 text-sm text-n-slate-12">
++    <div class="mb-3 flex items-center justify-between gap-3">
++      <p v-if="data?.email" class="truncate text-xs text-n-slate-11">
++        {{ data.email }}
++      </p>
++      <span v-else />
++      <button
++        v-if="email"
++        class="rounded px-2 py-1 text-xs font-medium text-n-brand hover:bg-n-alpha-2 disabled:cursor-not-allowed disabled:opacity-60"
++        :disabled="loading"
++        type="button"
++        @click="loadStudios"
++      >
++        {{ $t('CONVERSATION_SIDEBAR.EYE_PHOTO.REFRESH') }}
++      </button>
++    </div>
++
++    <p v-if="!email" class="text-n-slate-11">
++      {{ $t('CONVERSATION_SIDEBAR.EYE_PHOTO.NO_EMAIL') }}
++    </p>
++    <p v-else-if="loading && !data" class="text-n-slate-11">
++      {{ $t('CONVERSATION_SIDEBAR.EYE_PHOTO.LOADING') }}
++    </p>
++    <p v-else-if="error" class="text-n-ruby-11">{{ error }}</p>
++    <p v-else-if="!studios.length" class="text-n-slate-11">
++      {{ $t('CONVERSATION_SIDEBAR.EYE_PHOTO.NOT_FOUND') }}
++    </p>
++
++    <div v-else class="space-y-3">
++      <article
++        v-for="studio in studios"
++        :key="studio.id"
++        class="overflow-hidden rounded-lg border border-n-weak bg-n-alpha-1"
++      >
++        <div class="flex gap-3 p-3">
++          <img
++            v-if="hasUsableLogo(studio)"
++            :src="studio.logo_url"
++            :alt="`${studio.name} logo`"
++            class="h-10 w-10 flex-none rounded-lg border border-n-weak object-cover"
++            @error="markLogoFailed(studio.id)"
++          />
++          <div
++            v-else
++            class="flex h-10 w-10 flex-none items-center justify-center rounded-lg bg-n-brand/10 text-xs font-semibold text-n-brand"
++            aria-hidden="true"
++          >
++            {{ studioInitials(studio) }}
++          </div>
++          <div class="min-w-0 flex-1">
++            <div class="flex items-start justify-between gap-2">
++              <p class="truncate font-semibold">{{ studio.name }}</p>
++              <span
++                class="rounded-full bg-n-alpha-3 px-2 py-0.5 text-xs font-medium capitalize text-n-slate-11"
++                >{{ studio.status || '—' }}</span
++              >
++            </div>
++            <p
++              v-if="studio.plan?.name"
++              class="mt-0.5 truncate text-xs text-n-slate-11"
++            >
++              {{ studio.plan.name }}
++            </p>
++          </div>
++        </div>
++
++        <div class="grid grid-cols-2 border-t border-n-weak bg-n-alpha-2">
++          <div class="border-r border-n-weak px-3 py-2">
++            <p class="text-xs text-n-slate-11">
++              {{ $t('CONVERSATION_SIDEBAR.EYE_PHOTO.PHOTOS') }}
++            </p>
++            <p class="mt-0.5 font-semibold">{{ studioPhotos(studio) }}</p>
++          </div>
++          <div class="px-3 py-2">
++            <p class="text-xs text-n-slate-11">
++              {{ studio.users?.length || 0 }}
++              {{
++                $t(
++                  `CONVERSATION_SIDEBAR.EYE_PHOTO.${studio.users?.length === 1 ? 'USER' : 'USERS'}`
++                )
++              }}
++            </p>
++            <p class="mt-0.5 truncate text-xs font-medium">
++              {{ studio.users?.[0]?.name || '—' }}
++            </p>
++          </div>
++        </div>
++
++        <details
++          v-if="studio.users?.length"
++          class="border-t border-n-weak px-3 py-2"
++        >
++          <summary class="cursor-pointer text-xs font-medium text-n-brand">
++            {{ $t('CONVERSATION_SIDEBAR.EYE_PHOTO.STUDIO') }}
++            {{ $t('CONVERSATION_SIDEBAR.EYE_PHOTO.USERS') }}
++          </summary>
++          <ul class="mt-2 space-y-2">
++            <li v-for="user in studio.users" :key="user.email" class="min-w-0">
++              <p class="truncate text-xs font-medium">{{ user.name || '—' }}</p>
++              <p class="truncate text-xs text-n-slate-11">{{ user.email }}</p>
++            </li>
++          </ul>
++        </details>
++      </article>
++    </div>
++  </div>
++</template>
 diff --git a/app/javascript/dashboard/components/widgets/conversation/FirebaseProfile.vue b/app/javascript/dashboard/components/widgets/conversation/FirebaseProfile.vue
 new file mode 100644
-index 0000000..87c2d7d
+index 000000000..007a83bf0
 --- /dev/null
 +++ b/app/javascript/dashboard/components/widgets/conversation/FirebaseProfile.vue
 @@ -0,0 +1,113 @@
@@ -380,9 +430,449 @@ index 0000000..87c2d7d
 +    </woot-modal>
 +  </div>
 +</template>
+diff --git a/app/javascript/dashboard/composables/useUISettings.js b/app/javascript/dashboard/composables/useUISettings.js
+index 4f015e1d8..d9257aacb 100644
+--- a/app/javascript/dashboard/composables/useUISettings.js
++++ b/app/javascript/dashboard/composables/useUISettings.js
+@@ -14,2 +14,4 @@ export const DEFAULT_CONVERSATION_SIDEBAR_ITEMS_ORDER = Object.freeze([
+   { name: 'shopify_orders' },
++  { name: 'firebase_profile' },
++  { name: 'eye_photo' },
+ ]);
+diff --git a/app/javascript/dashboard/i18n/locale/en/conversation.json b/app/javascript/dashboard/i18n/locale/en/conversation.json
+index 3081c29e8..fd2bee7a7 100644
+--- a/app/javascript/dashboard/i18n/locale/en/conversation.json
++++ b/app/javascript/dashboard/i18n/locale/en/conversation.json
+@@ -369,2 +369,4 @@
+       "SHOPIFY_ORDERS": "Shopify Orders",
++      "FIREBASE_PROFILE": "App profile",
++      "EYE_PHOTO": "Eye.photo data",
+       "SHARED_FILES": "Attachments"
+@@ -400,2 +402,28 @@
+       }
++    },
++    "FIREBASE_PROFILE": {
++      "CHECK": "Check app profile",
++      "LOADING": "Loading app profile…",
++      "NO_EMAIL": "This contact has no email address.",
++      "NOT_FOUND": "No Firebase user was found for this email.",
++      "FIREBASE_ID": "Firebase ID",
++      "CREDITS": "Credits",
++      "AVAILABLE_CREDITS": "Available credits",
++      "USED_CREDITS": "Used credits",
++      "CREDIT_TRANSACTIONS": "Credit transactions",
++      "CURRENT_SUBSCRIPTION": "Current subscription",
++      "SUBSCRIPTION_TRANSACTIONS": "Subscription transactions",
++      "PHOTOS_THIS_PERIOD": "photos this period",
++      "ERROR": "Unable to load app profile"
++    },
++    "EYE_PHOTO": {
++      "LOADING": "Loading Eye.photo data…",
++      "REFRESH": "Refresh",
++      "NO_EMAIL": "This contact has no email address.",
++      "NOT_FOUND": "No Eye.photo studio is associated with this email.",
++      "STUDIO": "Studio",
++      "PHOTOS": "Photos",
++      "USERS": "users",
++      "USER": "user",
++      "ERROR": "Unable to load Eye.photo data."
+     }
+diff --git a/app/javascript/dashboard/i18n/locale/en/integrationApps.json b/app/javascript/dashboard/i18n/locale/en/integrationApps.json
+index a922473c6..831ec8249 100644
+--- a/app/javascript/dashboard/i18n/locale/en/integrationApps.json
++++ b/app/javascript/dashboard/i18n/locale/en/integrationApps.json
+@@ -63,3 +63,5 @@
+     "SIDEBAR_DESCRIPTION": {
+-      "DIALOGFLOW": "Dialogflow is a natural language processing platform for building conversational interfaces. Integrating it with {installationName} lets bots handle queries first and transfer them to agents when needed. It helps qualify leads and reduce agent workload by answering FAQs. To add Dialogflow, create a Service Account in Google Console and share the credentials. Refer to the docs for details"
++      "DIALOGFLOW": "Dialogflow is a natural language processing platform for building conversational interfaces. Integrating it with {installationName} lets bots handle queries first and transfer them to agents when needed. It helps qualify leads and reduce agent workload by answering FAQs. To add Dialogflow, create a Service Account in Google Console and share the credentials. Refer to the docs for details",
++      "FIREBASE_PROFILE": "Enable this integration for an inbox to look up the contact’s Firebase Auth account, credits, and subscription.",
++      "EYE_PHOTO": "Assign an admin-scoped Eye.photo API key to an inbox to show studios associated with a contact’s email."
+     }
+diff --git a/app/javascript/dashboard/routes/dashboard/conversation/ContactPanel.vue b/app/javascript/dashboard/routes/dashboard/conversation/ContactPanel.vue
+index fe95f9e99..4ed8a0cfb 100644
+--- a/app/javascript/dashboard/routes/dashboard/conversation/ContactPanel.vue
++++ b/app/javascript/dashboard/routes/dashboard/conversation/ContactPanel.vue
+@@ -23,2 +23,4 @@ import MacrosList from './Macros/List.vue';
+ import ShopifyOrdersList from 'dashboard/components/widgets/conversation/ShopifyOrdersList.vue';
++import FirebaseProfile from 'dashboard/components/widgets/conversation/FirebaseProfile.vue';
++import EyePhotoData from 'dashboard/components/widgets/conversation/EyePhotoData.vue';
+ import SidebarActionsHeader from 'dashboard/components-next/SidebarActionsHeader.vue';
+@@ -56,2 +58,20 @@ const isShopifyFeatureEnabled = computed(
+ );
++const firebaseProfileIntegration = useFunctionGetter(
++  'integrations/getIntegration',
++  'firebase_profile'
++);
++const isFirebaseProfileEnabled = computed(() =>
++  firebaseProfileIntegration.value?.hooks?.some(
++    hook => hook.status && hook.inbox?.id === props.inboxId
++  )
++);
++const eyePhotoIntegration = useFunctionGetter(
++  'integrations/getIntegration',
++  'eye_photo'
++);
++const isEyePhotoEnabled = computed(() =>
++  eyePhotoIntegration.value?.hooks?.some(
++    hook => hook.status && hook.inbox?.id === props.inboxId
++  )
++);
+ 
+@@ -130,2 +150,4 @@ onMounted(() => {
+   store.dispatch('integrations/get', 'linear');
++  store.dispatch('integrations/get', 'firebase_profile');
++  store.dispatch('integrations/get', 'eye_photo');
+ });
+@@ -288,2 +310,38 @@ onMounted(() => {
+           </div>
++          <div
++            v-else-if="
++              element.name === 'firebase_profile' && isFirebaseProfileEnabled
++            "
++          >
++            <AccordionItem
++              :title="$t('CONVERSATION_SIDEBAR.ACCORDION.FIREBASE_PROFILE')"
++              :is-open="isContactSidebarItemOpen('is_firebase_profile_open')"
++              compact
++              @toggle="
++                value => toggleSidebarUIState('is_firebase_profile_open', value)
++              "
++            >
++              <FirebaseProfile
++                :conversation-id="conversationId"
++                :contact-id="contactId"
++                :email="contact?.email"
++              />
++            </AccordionItem>
++          </div>
++          <div v-else-if="element.name === 'eye_photo' && isEyePhotoEnabled">
++            <AccordionItem
++              :title="$t('CONVERSATION_SIDEBAR.ACCORDION.EYE_PHOTO')"
++              :is-open="isContactSidebarItemOpen('is_eye_photo_open')"
++              compact
++              @toggle="
++                value => toggleSidebarUIState('is_eye_photo_open', value)
++              "
++            >
++              <EyePhotoData
++                :conversation-id="conversationId"
++                :contact-id="contactId"
++                :email="contact?.email"
++              />
++            </AccordionItem>
++          </div>
+           <div v-else-if="element.name === 'contact_notes'">
+diff --git a/app/javascript/dashboard/routes/dashboard/settings/integrations/Integration.vue b/app/javascript/dashboard/routes/dashboard/settings/integrations/Integration.vue
+index 5591095b3..7b77cfd89 100644
+--- a/app/javascript/dashboard/routes/dashboard/settings/integrations/Integration.vue
++++ b/app/javascript/dashboard/routes/dashboard/settings/integrations/Integration.vue
+@@ -71,3 +71,3 @@ const confirmDeletion = () => {
+         <img
+-          :src="`/dashboard/images/integrations/${integrationId}.png`"
++          :src="`/dashboard/images/integrations/${integrationId}.png${integrationId === 'firebase_profile' ? '?v=2' : ''}`"
+           class="max-w-full rounded-md border border-n-weak shadow-sm block dark:hidden bg-n-alpha-3 dark:bg-n-alpha-2"
+@@ -75,3 +75,3 @@ const confirmDeletion = () => {
+         <img
+-          :src="`/dashboard/images/integrations/${integrationId}-dark.png`"
++          :src="`/dashboard/images/integrations/${integrationId}-dark.png${integrationId === 'firebase_profile' ? '?v=2' : ''}`"
+           class="max-w-full rounded-md border border-n-weak shadow-sm hidden dark:block bg-n-alpha-3 dark:bg-n-alpha-2"
+diff --git a/app/javascript/dashboard/routes/dashboard/settings/integrations/IntegrationItem.vue b/app/javascript/dashboard/routes/dashboard/settings/integrations/IntegrationItem.vue
+index 465cc438b..f72084c6a 100644
+--- a/app/javascript/dashboard/routes/dashboard/settings/integrations/IntegrationItem.vue
++++ b/app/javascript/dashboard/routes/dashboard/settings/integrations/IntegrationItem.vue
+@@ -57,3 +57,3 @@ const actionURL = computed(() =>
+         <img
+-          :src="`/dashboard/images/integrations/${id}.png`"
++          :src="`/dashboard/images/integrations/${id}.png${id === 'firebase_profile' ? '?v=2' : ''}`"
+           class="max-w-full rounded-md border border-n-weak shadow-sm block dark:hidden bg-n-alpha-3 dark:bg-n-alpha-2"
+@@ -61,3 +61,3 @@ const actionURL = computed(() =>
+         <img
+-          :src="`/dashboard/images/integrations/${id}-dark.png`"
++          :src="`/dashboard/images/integrations/${id}-dark.png${id === 'firebase_profile' ? '?v=2' : ''}`"
+           class="max-w-full rounded-md border border-n-weak shadow-sm hidden dark:block bg-n-alpha-3 dark:bg-n-alpha-2"
+diff --git a/app/javascript/dashboard/routes/dashboard/settings/integrations/MultipleIntegrationHooks.vue b/app/javascript/dashboard/routes/dashboard/settings/integrations/MultipleIntegrationHooks.vue
+index 47e0991f0..26d878ac5 100644
+--- a/app/javascript/dashboard/routes/dashboard/settings/integrations/MultipleIntegrationHooks.vue
++++ b/app/javascript/dashboard/routes/dashboard/settings/integrations/MultipleIntegrationHooks.vue
+@@ -79,3 +79,3 @@ const inboxName = hook => (hook.inbox ? hook.inbox.name : '');
+         $t(
+-          `INTEGRATION_APPS.SIDEBAR_DESCRIPTION.${integration.name.toUpperCase()}`,
++          `INTEGRATION_APPS.SIDEBAR_DESCRIPTION.${integration.id.toUpperCase()}`,
+           { installationName: globalConfig.installationName }
+diff --git a/app/javascript/dashboard/routes/dashboard/settings/integrations/NewHook.vue b/app/javascript/dashboard/routes/dashboard/settings/integrations/NewHook.vue
+index 893a08532..fb618e583 100644
+--- a/app/javascript/dashboard/routes/dashboard/settings/integrations/NewHook.vue
++++ b/app/javascript/dashboard/routes/dashboard/settings/integrations/NewHook.vue
+@@ -41,10 +41,15 @@ export default {
+       dialogFlowEnabledInboxes: 'inboxes/dialogFlowEnabledInboxes',
++      allInboxes: 'inboxes/getInboxes',
+     }),
+     inboxes() {
+-      return this.dialogFlowEnabledInboxes
++      const selectableInboxes = this.isIntegrationDialogflow
++        ? this.dialogFlowEnabledInboxes
++        : this.allInboxes;
++
++      return selectableInboxes
+         .filter(inbox => {
+-          if (!this.isIntegrationDialogflow) {
++          if (!this.requiresUniqueInbox) {
+             return true;
+           }
+-          return !this.connectedDialogflowInboxIds.includes(inbox.id);
++          return !this.connectedInboxIds.includes(inbox.id);
+         })
+@@ -53,4 +58,4 @@ export default {
+ 
+-    connectedDialogflowInboxIds() {
+-      if (!this.isIntegrationDialogflow) {
++    connectedInboxIds() {
++      if (!this.requiresUniqueInbox) {
+         return [];
+@@ -65,2 +70,5 @@ export default {
+     },
++    requiresUniqueInbox() {
++      return ['dialogflow', 'eye_photo'].includes(this.integration.id);
++    },
+     submitButtonLabel() {
+diff --git a/app/javascript/dashboard/routes/dashboard/settings/integrations/SingleIntegrationHooks.vue b/app/javascript/dashboard/routes/dashboard/settings/integrations/SingleIntegrationHooks.vue
+index 405656542..19ecfd52c 100644
+--- a/app/javascript/dashboard/routes/dashboard/settings/integrations/SingleIntegrationHooks.vue
++++ b/app/javascript/dashboard/routes/dashboard/settings/integrations/SingleIntegrationHooks.vue
+@@ -29,3 +29,3 @@ const { replaceInstallationName } = useBranding();
+         <img
+-          :src="`/dashboard/images/integrations/${integrationId}.png`"
++          :src="`/dashboard/images/integrations/${integrationId}.png${integrationId === 'firebase_profile' ? '?v=2' : ''}`"
+           class="max-w-full rounded-md border border-n-weak shadow-sm block dark:hidden bg-n-alpha-3 dark:bg-n-alpha-2"
+@@ -33,3 +33,3 @@ const { replaceInstallationName } = useBranding();
+         <img
+-          :src="`/dashboard/images/integrations/${integrationId}-dark.png`"
++          :src="`/dashboard/images/integrations/${integrationId}-dark.png${integrationId === 'firebase_profile' ? '?v=2' : ''}`"
+           class="max-w-full rounded-md border border-n-weak shadow-sm hidden dark:block bg-n-alpha-3 dark:bg-n-alpha-2"
+diff --git a/app/models/integrations/hook.rb b/app/models/integrations/hook.rb
+index a3396951f..a4983a06a 100644
+--- a/app/models/integrations/hook.rb
++++ b/app/models/integrations/hook.rb
+@@ -33,2 +33,3 @@ class Integrations::Hook < ApplicationRecord
+   validates :app_id, uniqueness: { scope: [:account_id], unless: -> { app.present? && app.params[:allow_multiple_hooks].present? } }
++  validates :app_id, uniqueness: { scope: [:account_id, :inbox_id] }, if: :eye_photo?
+ 
+@@ -63,2 +64,6 @@ class Integrations::Hook < ApplicationRecord
+ 
++  def eye_photo?
++    app_id == 'eye_photo'
++  end
++
+   def notion?
+diff --git a/app/services/eye_photo_client.rb b/app/services/eye_photo_client.rb
+new file mode 100644
+index 000000000..960cb2c05
+--- /dev/null
++++ b/app/services/eye_photo_client.rb
+@@ -0,0 +1,41 @@
++require 'json'
++require 'net/http'
++require 'uri'
++
++class EyePhotoClient
++  class UnavailableError < StandardError; end
++
++  LOOKUP_PATH = '/api/admin/studios/lookup'.freeze
++
++  def lookup(email:, api_key:)
++    raise UnavailableError, 'Eye.photo is not configured for this inbox' if api_key.blank?
++
++    uri = URI.join(base_url, LOOKUP_PATH)
++    request = Net::HTTP::Post.new(uri)
++    request['Authorization'] = "Token #{api_key}"
++    request['Content-Type'] = 'application/json'
++    request.body = { email: email }.to_json
++
++    response = Net::HTTP.start(
++      uri.host,
++      uri.port,
++      use_ssl: uri.scheme == 'https',
++      open_timeout: 2,
++      read_timeout: 8,
++    ) { |http| http.request(request) }
++
++    unless response.is_a?(Net::HTTPSuccess)
++      raise UnavailableError, 'Eye.photo could not retrieve studio data'
++    end
++
++    JSON.parse(response.body)
++  rescue SocketError, Timeout::Error, Errno::ECONNREFUSED, JSON::ParserError => e
++    raise UnavailableError, "Eye.photo could not retrieve studio data: #{e.message}"
++  end
++
++  private
++
++  def base_url
++    ENV.fetch('EYE_PHOTO_API_URL', 'https://eye.photo')
++  end
++end
+diff --git a/app/services/firebase_profile_gateway.rb b/app/services/firebase_profile_gateway.rb
+new file mode 100644
+index 000000000..c87b471b9
+--- /dev/null
++++ b/app/services/firebase_profile_gateway.rb
+@@ -0,0 +1,38 @@
++require 'json'
++require 'net/http'
++require 'uri'
++
++class FirebaseProfileGateway
++  class UnavailableError < StandardError; end
++
++  def lookup(email)
++    uri = URI.join(url, '/v1/profile')
++    request = Net::HTTP::Post.new(uri)
++    request['Authorization'] = "Bearer #{token}"
++    request['Content-Type'] = 'application/json'
++    request.body = { email: email }.to_json
++
++    response = Net::HTTP.start(uri.host, uri.port, use_ssl: uri.scheme == 'https', open_timeout: 2, read_timeout: 8) do |http|
++      http.request(request)
++    end
++    raise UnavailableError, 'Firebase profile service is unavailable' unless response.is_a?(Net::HTTPSuccess)
++
++    JSON.parse(response.body)
++  rescue SocketError, Timeout::Error, Errno::ECONNREFUSED, JSON::ParserError => e
++    raise UnavailableError, "Firebase profile service is unavailable: #{e.message}"
++  end
++
++  private
++
++  def url
++    ENV.fetch('FIREBASE_PROFILE_GATEWAY_URL')
++  rescue KeyError
++    raise UnavailableError, 'Firebase profile integration is not configured'
++  end
++
++  def token
++    ENV.fetch('FIREBASE_PROFILE_GATEWAY_TOKEN')
++  rescue KeyError
++    raise UnavailableError, 'Firebase profile integration is not configured'
++  end
++end
+diff --git a/config/integration/apps.yml b/config/integration/apps.yml
+index 1a45cc098..49ebee824 100644
+--- a/config/integration/apps.yml
++++ b/config/integration/apps.yml
+@@ -243,2 +243,33 @@ shopify:
+ 
++firebase_profile:
++  id: firebase_profile
++  logo: firebase_profile.png
++  i18n_key: firebase_profile
++  hook_type: inbox
++  allow_multiple_hooks: true
++  settings_form_schema: []
++
++eye_photo:
++  id: eye_photo
++  logo: eye_photo.png
++  i18n_key: eye_photo
++  hook_type: inbox
++  allow_multiple_hooks: true
++  settings_json_schema:
++    {
++      'type': 'object',
++      'additionalProperties': false,
++    }
++  settings_form_schema:
++    [
++      {
++        'label': 'Eye.photo admin API key',
++        'type': 'password',
++        'name': 'api_key',
++        'validation': 'required',
++        'help': 'Use an admin-scoped API key owned by an Eye.photo super admin. The key is stored securely and is never shown again.',
++      },
++    ]
++  visible_properties: []
++
+ leadsquared:
+diff --git a/config/locales/en.yml b/config/locales/en.yml
+index dc2b4d3fe..45d0be9cc 100644
+--- a/config/locales/en.yml
++++ b/config/locales/en.yml
+@@ -380,2 +380,10 @@ en:
+       description: 'Connect your Shopify store to access order details, customer information, and product data directly within your conversations and helps your support team provide faster, more contextual assistance to your customers.'
++    firebase_profile:
++      name: 'Firebase Profile'
++      short_description: 'Look up an app user’s Firebase profile, credits, and subscription from an enabled inbox.'
++      description: 'Connect an inbox to securely look up the Firebase Auth account and associated credits and subscription documents for the conversation contact.'
++    eye_photo:
++      name: 'Eye.photo'
++      short_description: 'Show the contact’s Eye.photo studios in conversations from an enabled inbox.'
++      description: 'Assign an Eye.photo admin API key to an inbox to securely look up studios associated with a conversation contact’s email.'
+     leadsquared:
+diff --git a/config/routes.rb b/config/routes.rb
+index 01dab6a02..eb14b1a69 100644
+--- a/config/routes.rb
++++ b/config/routes.rb
+@@ -361,2 +361,4 @@ Rails.application.routes.draw do
+             end
++            get 'firebase_profile/show', to: 'firebase_profile#show'
++            get 'eye_photo/show', to: 'eye_photo#show'
+             resource :linear, controller: 'linear', only: [] do
+diff --git a/spec/controllers/api/v1/accounts/integrations/eye_photo_controller_spec.rb b/spec/controllers/api/v1/accounts/integrations/eye_photo_controller_spec.rb
+new file mode 100644
+index 000000000..2e2b075bd
+--- /dev/null
++++ b/spec/controllers/api/v1/accounts/integrations/eye_photo_controller_spec.rb
+@@ -0,0 +1,47 @@
++require 'rails_helper'
++
++RSpec.describe 'Eye.photo Integration API', type: :request do
++  let(:account) { create(:account) }
++  let(:agent) { create(:user, account: account, role: :agent) }
++  let(:inbox) { create(:inbox, account: account) }
++  let(:contact) { create(:contact, account: account, email: 'owner@example.com') }
++  let(:conversation) { create(:conversation, account: account, inbox: inbox, contact: contact) }
++  let(:client) { instance_double(EyePhotoClient) }
++
++  before do
++    create(:integrations_hook, account: account, inbox: inbox, app_id: 'eye_photo', access_token: 'admin-api-key')
++    allow(EyePhotoClient).to receive(:new).and_return(client)
++  end
++
++  describe 'GET /api/v1/accounts/:account_id/integrations/eye_photo/show' do
++    it 'returns studios associated with the conversation contact email' do
++      payload = { 'email' => contact.email, 'studios' => [{ 'id' => 42, 'name' => 'Example Studio', 'photos_count' => 128 }] }
++      allow(client).to receive(:lookup).with(email: contact.email, api_key: 'admin-api-key').and_return(payload)
++
++      get "/api/v1/accounts/#{account.id}/integrations/eye_photo/show",
++          params: { conversation_id: conversation.id, contact_id: contact.id }, headers: agent.create_new_auth_token, as: :json
++
++      expect(response).to have_http_status(:ok)
++      expect(response.parsed_body.dig('studios', 0, 'name')).to eq('Example Studio')
++    end
++
++    it 'does not expose a key configured for another inbox' do
++      other_inbox = create(:inbox, account: account)
++      other_conversation = create(:conversation, account: account, inbox: other_inbox, contact: contact)
++
++      get "/api/v1/accounts/#{account.id}/integrations/eye_photo/show",
++          params: { conversation_id: other_conversation.id, contact_id: contact.id }, headers: agent.create_new_auth_token, as: :json
++
++      expect(response).to have_http_status(:not_found)
++    end
++
++    it 'returns an unavailable response when Eye.photo cannot be reached' do
++      allow(client).to receive(:lookup).and_raise(EyePhotoClient::UnavailableError, 'Eye.photo could not retrieve studio data')
++
++      get "/api/v1/accounts/#{account.id}/integrations/eye_photo/show",
++          params: { conversation_id: conversation.id, contact_id: contact.id }, headers: agent.create_new_auth_token, as: :json
++
++      expect(response).to have_http_status(:bad_gateway)
++    end
++  end
++end
 diff --git a/spec/controllers/api/v1/accounts/integrations/firebase_profile_controller_spec.rb b/spec/controllers/api/v1/accounts/integrations/firebase_profile_controller_spec.rb
 new file mode 100644
-index 0000000..388556d
+index 000000000..388556d24
 --- /dev/null
 +++ b/spec/controllers/api/v1/accounts/integrations/firebase_profile_controller_spec.rb
 @@ -0,0 +1,44 @@
@@ -430,95 +920,40 @@ index 0000000..388556d
 +    end
 +  end
 +end
-diff --git a/app/javascript/dashboard/i18n/locale/en/integrationApps.json b/app/javascript/dashboard/i18n/locale/en/integrationApps.json
-index 6b3ee32..ec6f8a1 100644
---- a/app/javascript/dashboard/i18n/locale/en/integrationApps.json
-+++ b/app/javascript/dashboard/i18n/locale/en/integrationApps.json
-@@ -48,6 +48,7 @@
-     },
-     "SIDEBAR_DESCRIPTION": {
--      "DIALOGFLOW": "Dialogflow is a natural language processing platform for building conversational interfaces. Integrating it with {installationName} lets bots handle queries first and transfer them to agents when needed. It helps qualify leads and reduce agent workload by answering FAQs. To add Dialogflow, create a Service Account in Google Console and share the credentials. Refer to the docs for details"
-+      "DIALOGFLOW": "Dialogflow is a natural language processing platform for building conversational interfaces. Integrating it with {installationName} lets bots handle queries first and transfer them to agents when needed. It helps qualify leads and reduce agent workload by answering FAQs. To add Dialogflow, create a Service Account in Google Console and share the credentials. Refer to the docs for details",
-+      "FIREBASE_PROFILE": "Enable this integration for an inbox to look up the contact’s Firebase Auth account, credits, and subscription."
-     }
-   }
- }
-diff --git a/app/javascript/dashboard/routes/dashboard/settings/integrations/MultipleIntegrationHooks.vue b/app/javascript/dashboard/routes/dashboard/settings/integrations/MultipleIntegrationHooks.vue
-index 8931ea4..555c0b9 100644
---- a/app/javascript/dashboard/routes/dashboard/settings/integrations/MultipleIntegrationHooks.vue
-+++ b/app/javascript/dashboard/routes/dashboard/settings/integrations/MultipleIntegrationHooks.vue
-@@ -76,5 +76,5 @@ const inboxName = hook => (hook.inbox ? hook.inbox.name : '');
-         $t(
--          `INTEGRATION_APPS.SIDEBAR_DESCRIPTION.${integration.name.toUpperCase()}`,
-+          `INTEGRATION_APPS.SIDEBAR_DESCRIPTION.${integration.id.toUpperCase()}`,
-           { installationName: globalConfig.installationName }
-         )
-       "
-diff --git a/app/javascript/dashboard/routes/dashboard/settings/integrations/NewHook.vue b/app/javascript/dashboard/routes/dashboard/settings/integrations/NewHook.vue
-index 997a850..0a0f2e1 100644
---- a/app/javascript/dashboard/routes/dashboard/settings/integrations/NewHook.vue
-+++ b/app/javascript/dashboard/routes/dashboard/settings/integrations/NewHook.vue
-@@ -38,9 +38,14 @@ export default {
-     ...mapGetters({
-       uiFlags: 'integrations/getUIFlags',
-       dialogFlowEnabledInboxes: 'inboxes/dialogFlowEnabledInboxes',
-+      allInboxes: 'inboxes/getInboxes',
-     }),
-     inboxes() {
--      return this.dialogFlowEnabledInboxes
-+      const selectableInboxes = this.isIntegrationDialogflow
-+        ? this.dialogFlowEnabledInboxes
-+        : this.allInboxes;
+diff --git a/spec/controllers/api/v1/accounts/integrations/hooks_controller_eye_photo_spec.rb b/spec/controllers/api/v1/accounts/integrations/hooks_controller_eye_photo_spec.rb
+new file mode 100644
+index 000000000..358ee4748
+--- /dev/null
++++ b/spec/controllers/api/v1/accounts/integrations/hooks_controller_eye_photo_spec.rb
+@@ -0,0 +1,31 @@
++require 'rails_helper'
 +
-+      return selectableInboxes
-         .filter(inbox => {
-           if (!this.isIntegrationDialogflow) {
-             return true;
-diff --git a/app/javascript/dashboard/routes/dashboard/settings/integrations/IntegrationItem.vue b/app/javascript/dashboard/routes/dashboard/settings/integrations/IntegrationItem.vue
-index 89f0a78..3e3ec11 100644
---- a/app/javascript/dashboard/routes/dashboard/settings/integrations/IntegrationItem.vue
-+++ b/app/javascript/dashboard/routes/dashboard/settings/integrations/IntegrationItem.vue
-@@ -56,9 +56,9 @@ const actionURL = computed(() =>
-       <div class="flex h-12 w-12 mb-2">
-         <img
--          :src="`/dashboard/images/integrations/${id}.png`"
-+          :src="`/dashboard/images/integrations/${id}.png${id === 'firebase_profile' ? '?v=2' : ''}`"
-           class="max-w-full rounded-md border border-n-weak shadow-sm block dark:hidden bg-n-alpha-3 dark:bg-n-alpha-2"
-         />
-         <img
--          :src="`/dashboard/images/integrations/${id}-dark.png`"
-+          :src="`/dashboard/images/integrations/${id}-dark.png${id === 'firebase_profile' ? '?v=2' : ''}`"
-           class="max-w-full rounded-md border border-n-weak shadow-sm hidden dark:block bg-n-alpha-3 dark:bg-n-alpha-2"
-         />
-diff --git a/app/javascript/dashboard/routes/dashboard/settings/integrations/Integration.vue b/app/javascript/dashboard/routes/dashboard/settings/integrations/Integration.vue
-index 3088819..4aed084 100644
---- a/app/javascript/dashboard/routes/dashboard/settings/integrations/Integration.vue
-+++ b/app/javascript/dashboard/routes/dashboard/settings/integrations/Integration.vue
-@@ -70,9 +70,9 @@ const confirmDeletion = () => {
-       <div class="flex h-16 w-16 items-center justify-center flex-shrink-0">
-         <img
--          :src="`/dashboard/images/integrations/${integrationId}.png`"
-+          :src="`/dashboard/images/integrations/${integrationId}.png${integrationId === 'firebase_profile' ? '?v=2' : ''}`"
-           class="max-w-full rounded-md border border-n-weak shadow-sm block dark:hidden bg-n-alpha-3 dark:bg-n-alpha-2"
-         />
-         <img
--          :src="`/dashboard/images/integrations/${integrationId}-dark.png`"
-+          :src="`/dashboard/images/integrations/${integrationId}-dark.png${integrationId === 'firebase_profile' ? '?v=2' : ''}`"
-           class="max-w-full rounded-md border border-n-weak shadow-sm hidden dark:block bg-n-alpha-3 dark:bg-n-alpha-2"
-         />
-diff --git a/app/javascript/dashboard/routes/dashboard/settings/integrations/SingleIntegrationHooks.vue b/app/javascript/dashboard/routes/dashboard/settings/integrations/SingleIntegrationHooks.vue
-index 7e8a601..5e8e342 100644
---- a/app/javascript/dashboard/routes/dashboard/settings/integrations/SingleIntegrationHooks.vue
-+++ b/app/javascript/dashboard/routes/dashboard/settings/integrations/SingleIntegrationHooks.vue
-@@ -28,9 +28,9 @@ const { replaceInstallationName } = useBranding();
-       <div class="flex h-16 w-16 items-center justify-center">
-         <img
--          :src="`/dashboard/images/integrations/${integrationId}.png`"
-+          :src="`/dashboard/images/integrations/${integrationId}.png${integrationId === 'firebase_profile' ? '?v=2' : ''}`"
-           class="max-w-full rounded-md border border-n-weak shadow-sm block dark:hidden bg-n-alpha-3 dark:bg-n-alpha-2"
-         />
-         <img
--          :src="`/dashboard/images/integrations/${integrationId}-dark.png`"
-+          :src="`/dashboard/images/integrations/${integrationId}-dark.png${integrationId === 'firebase_profile' ? '?v=2' : ''}`"
-           class="max-w-full rounded-md border border-n-weak shadow-sm hidden dark:block bg-n-alpha-3 dark:bg-n-alpha-2"
-         />
++RSpec.describe Api::V1::Accounts::Integrations::HooksController, type: :request do
++  let(:account) { create(:account) }
++  let(:administrator) { create(:user, account: account, role: :administrator) }
++  let(:inbox) { create(:inbox, account: account) }
++
++  it 'stores the Eye.photo API key in the hook token instead of JSON settings' do
++    post api_v1_account_integrations_hooks_url(account_id: account.id),
++         params: { app_id: 'eye_photo', inbox_id: inbox.id, settings: { api_key: 'eye-photo-admin-key' } },
++         headers: administrator.create_new_auth_token,
++         as: :json
++
++    expect(response).to have_http_status(:success)
++    hook = account.hooks.find_by!(app_id: 'eye_photo', inbox_id: inbox.id)
++    expect(hook.access_token).to eq('eye-photo-admin-key')
++    expect(hook.settings).to eq({})
++    expect(response.parsed_body.dig('settings', 'api_key')).to be_nil
++  end
++
++  it 'does not allow a second Eye.photo key for the same inbox' do
++    create(:integrations_hook, account: account, inbox: inbox, app_id: 'eye_photo')
++
++    post api_v1_account_integrations_hooks_url(account_id: account.id),
++         params: { app_id: 'eye_photo', inbox_id: inbox.id, settings: { api_key: 'another-key' } },
++         headers: administrator.create_new_auth_token,
++         as: :json
++
++    expect(response).to have_http_status(:unprocessable_entity)
++  end
++end
