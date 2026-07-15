@@ -785,6 +785,20 @@ index 000000000..c87b471b9
 +    raise UnavailableError, 'Firebase profile integration is not configured'
 +  end
 +end
+diff --git a/app/views/layouts/vueapp.html.erb b/app/views/layouts/vueapp.html.erb
+index d97ece981..55b019a8c 100644
+--- a/app/views/layouts/vueapp.html.erb
++++ b/app/views/layouts/vueapp.html.erb
+@@ -4,3 +4,3 @@
+     <title>
+-      <%= @global_config['INSTALLATION_NAME'] %>
++      Eyepic Support
+     </title>
+@@ -30,3 +30,3 @@
+     <% end %>
+-    <link rel="icon" type="image/png" sizes="512x512" href="<%= @global_config['LOGO_THUMBNAIL'] %>">
++    <link rel="icon" type="image/png" sizes="512x512" href="/favicon-512x512.png">
+     <%= csrf_meta_tags %>
 diff --git a/config/integration/apps.yml b/config/integration/apps.yml
 index 1a45cc098..49ebee824 100644
 --- a/config/integration/apps.yml

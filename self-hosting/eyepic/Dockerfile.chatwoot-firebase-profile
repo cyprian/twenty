@@ -7,6 +7,7 @@ RUN apk add --no-cache patch
 COPY self-hosting/eyepic/chatwoot-firebase-profile.patch /tmp/chatwoot-firebase-profile.patch
 COPY self-hosting/eyepic/firebase-profile-logo.png /tmp/firebase-profile-logo.png
 COPY self-hosting/eyepic/eye-photo-logo.png /tmp/eye-photo-logo.png
+COPY self-hosting/eyepic/support-favicon /tmp/support-favicon
 RUN patch --batch --forward -p1 -d /app < /tmp/chatwoot-firebase-profile.patch
 # Integration settings derive image URLs from the integration id. Provide both
 # variants before assets are compiled so they are published with the dashboard.
@@ -14,6 +15,7 @@ RUN cp /tmp/firebase-profile-logo.png /app/public/dashboard/images/integrations/
   && cp /tmp/firebase-profile-logo.png /app/public/dashboard/images/integrations/firebase_profile-dark.png
 RUN cp /tmp/eye-photo-logo.png /app/public/dashboard/images/integrations/eye_photo.png \
   && cp /tmp/eye-photo-logo.png /app/public/dashboard/images/integrations/eye_photo-dark.png
+RUN cp /tmp/support-favicon/* /app/public/
 RUN ln -s /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
   && npm install -g pnpm@10.2.0 \
   && pnpm install --frozen-lockfile --ignore-scripts \
