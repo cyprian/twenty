@@ -142,15 +142,29 @@ index 000000000..8bd27f85e
 +}
 +
 +export default new FirebaseProfileAPI();
+diff --git a/app/javascript/dashboard/components-next/NewConversation/ComposeConversation.vue b/app/javascript/dashboard/components-next/NewConversation/ComposeConversation.vue
+index 02a00c703..ee36be617 100644
+--- a/app/javascript/dashboard/components-next/NewConversation/ComposeConversation.vue
++++ b/app/javascript/dashboard/components-next/NewConversation/ComposeConversation.vue
+@@ -204 +204,5 @@ const onPopoverHide = () => {
++const openCompose = () => popoverRef.value?.show();
++
++defineExpose({ openCompose });
++
+ watch(
 diff --git a/app/javascript/dashboard/components/widgets/conversation/EyePhotoData.vue b/app/javascript/dashboard/components/widgets/conversation/EyePhotoData.vue
 new file mode 100644
-index 000000000..27afc7512
+index 000000000..a3810f4aa
 --- /dev/null
 +++ b/app/javascript/dashboard/components/widgets/conversation/EyePhotoData.vue
-@@ -0,0 +1,188 @@
+@@ -0,0 +1,261 @@
 +<script setup>
-+import { computed, ref, watch } from 'vue';
++import { computed, nextTick, ref, watch } from 'vue';
 +import EyePhotoAPI from 'dashboard/api/integrations/eyePhoto';
++import ContactAPI from 'dashboard/api/contacts';
++import { useStore } from 'dashboard/composables/store';
++import { useAlert } from 'dashboard/composables';
++import ComposeConversation from 'dashboard/components-next/NewConversation/ComposeConversation.vue';
 +
 +const props = defineProps({
 +  conversationId: { type: [Number, String], required: true },
@@ -163,6 +177,10 @@ index 000000000..27afc7512
 +const error = ref('');
 +const showUsers = ref(false);
 +const selectedStudio = ref(null);
++const chatwootContactIds = ref({});
++const composeConversationRefs = ref({});
++const preparingConversationFor = ref('');
++const store = useStore();
 +let latestRequestId = 0;
 +
 +const studios = computed(() => data.value?.studios || []);
@@ -175,6 +193,49 @@ index 000000000..27afc7512
 +const openUsers = studio => {
 +  selectedStudio.value = studio;
 +  showUsers.value = true;
++};
++
++const emailKey = email => email.toLowerCase();
++
++const setComposeConversationRef = (email, component) => {
++  const key = emailKey(email);
++  if (component) composeConversationRefs.value[key] = component;
++  else delete composeConversationRefs.value[key];
++};
++
++const prepareConversation = async user => {
++  const key = emailKey(user.email);
++  if (chatwootContactIds.value[key]) return;
++
++  preparingConversationFor.value = key;
++  try {
++    const {
++      data: { payload = [] },
++    } = await ContactAPI.search(user.email, 1, 'name');
++    const contact =
++      payload.find(
++        candidate => emailKey(candidate.email || '') === emailKey(user.email)
++      ) ||
++      (await store.dispatch('contacts/create', {
++        name: user.name || user.email.split('@')[0],
++        email: user.email,
++      }));
++
++    await store.dispatch('contacts/setContact', contact);
++    await store.dispatch('contacts/fetchContactableInbox', contact.id);
++    chatwootContactIds.value = {
++      ...chatwootContactIds.value,
++      [key]: contact.id,
++    };
++    await nextTick();
++    composeConversationRefs.value[key]?.openCompose();
++  } catch (requestError) {
++    useAlert('Unable to prepare a Chatwoot conversation.');
++  } finally {
++    if (preparingConversationFor.value === key) {
++      preparingConversationFor.value = '';
++    }
++  }
 +};
 +
 +const loadStudios = async () => {
@@ -320,17 +381,39 @@ index 000000000..27afc7512
 +            <p class="truncate font-medium">{{ user.name || '—' }}</p>
 +            <p class="truncate text-xs text-n-slate-11">{{ user.email }}</p>
 +          </div>
-+          <a
++          <ComposeConversation
++            v-if="chatwootContactIds[emailKey(user.email)]"
++            :ref="component => setComposeConversationRef(user.email, component)"
++            :contact-id="String(chatwootContactIds[emailKey(user.email)])"
++          >
++            <template #trigger>
++              <button
++                :aria-label="
++                  $t('CONVERSATION_SIDEBAR.EYE_PHOTO.START_CONVERSATION', {
++                    name: user.name || user.email,
++                  })
++                "
++                class="rounded p-2 text-n-brand hover:bg-n-alpha-2"
++                type="button"
++              >
++                <fluent-icon icon="chat" size="18" />
++              </button>
++            </template>
++          </ComposeConversation>
++          <button
++            v-else
 +            :aria-label="
-+              $t('CONVERSATION_SIDEBAR.EYE_PHOTO.EMAIL_USER', {
++              $t('CONVERSATION_SIDEBAR.EYE_PHOTO.START_CONVERSATION', {
 +                name: user.name || user.email,
 +              })
 +            "
-+            :href="`mailto:${user.email}`"
-+            class="rounded p-2 text-n-brand hover:bg-n-alpha-2"
++            class="rounded p-2 text-n-brand hover:bg-n-alpha-2 disabled:cursor-not-allowed disabled:opacity-60"
++            :disabled="preparingConversationFor === emailKey(user.email)"
++            type="button"
++            @click="prepareConversation(user)"
 +          >
-+            <fluent-icon icon="mail" size="18" />
-+          </a>
++            <fluent-icon icon="chat" size="18" />
++          </button>
 +        </div>
 +      </div>
 +    </woot-modal>
@@ -465,7 +548,7 @@ index 4f015e1d8..d9257aacb 100644
 +  { name: 'eye_photo' },
  ]);
 diff --git a/app/javascript/dashboard/i18n/locale/en/conversation.json b/app/javascript/dashboard/i18n/locale/en/conversation.json
-index 3081c29e8..be83e74bb 100644
+index 3081c29e8..724c98c3d 100644
 --- a/app/javascript/dashboard/i18n/locale/en/conversation.json
 +++ b/app/javascript/dashboard/i18n/locale/en/conversation.json
 @@ -369,2 +369,4 @@
@@ -473,7 +556,7 @@ index 3081c29e8..be83e74bb 100644
 +      "FIREBASE_PROFILE": "App profile",
 +      "EYE_PHOTO": "Eye.photo data",
        "SHARED_FILES": "Attachments"
-@@ -400,2 +402,33 @@
+@@ -400,2 +402,34 @@
        }
 +    },
 +    "FIREBASE_PROFILE": {
@@ -504,6 +587,7 @@ index 3081c29e8..be83e74bb 100644
 +      "USER": "user",
 +      "SHOW_USERS": "Show users",
 +      "EMAIL_USER": "Email {name}",
++      "START_CONVERSATION": "Start a new conversation with {name}",
 +      "VIEW_IN_EYE_PHOTO": "View in Eye.photo",
 +      "ERROR": "Unable to load Eye.photo data."
      }
