@@ -52,6 +52,10 @@ EOF
   chmod 600 "$RUNTIME_DIR/.env"
 fi
 
+# Older deployments used a separate /opt/apps/chatwoot checkout. The overlay
+# now lives in this repository, so always build from the current app directory.
+sed -i "s|^CHATWOOT_BUILD_CONTEXT=.*|CHATWOOT_BUILD_CONTEXT=$APP_DIR|" "$RUNTIME_DIR/.env"
+
 # Integration hook access tokens (including the per-inbox Eye.photo admin key)
 # use Active Record Encryption when all three values are configured. Add them
 # independently so existing Chatwoot deployments are upgraded safely as well.
