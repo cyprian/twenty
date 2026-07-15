@@ -21,7 +21,7 @@ if [ ! -f "$RUNTIME_DIR/.env" ]; then
   postgres_password=$(openssl rand -hex 32)
   redis_password=$(openssl rand -hex 32)
   cat >"$RUNTIME_DIR/.env" <<EOF
-CHATWOOT_VERSION=v4.14.0
+CHATWOOT_VERSION=v4.15.1
 FRONTEND_URL=https://$DOMAIN
 FORCE_SSL=true
 ENABLE_ACCOUNT_SIGNUP=false
@@ -55,6 +55,7 @@ fi
 # Older deployments used a separate /opt/apps/chatwoot checkout. The overlay
 # now lives in this repository, so always build from the current app directory.
 sed -i "s|^CHATWOOT_BUILD_CONTEXT=.*|CHATWOOT_BUILD_CONTEXT=$APP_DIR|" "$RUNTIME_DIR/.env"
+sed -i 's|^CHATWOOT_VERSION=.*|CHATWOOT_VERSION=v4.15.1|' "$RUNTIME_DIR/.env"
 
 # Integration hook access tokens (including the per-inbox Eye.photo admin key)
 # use Active Record Encryption when all three values are configured. Add them

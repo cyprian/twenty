@@ -548,15 +548,15 @@ index 4f015e1d8..d9257aacb 100644
 +  { name: 'eye_photo' },
  ]);
 diff --git a/app/javascript/dashboard/i18n/locale/en/conversation.json b/app/javascript/dashboard/i18n/locale/en/conversation.json
-index 3081c29e8..724c98c3d 100644
+index 045b8d0d9..f83773102 100644
 --- a/app/javascript/dashboard/i18n/locale/en/conversation.json
 +++ b/app/javascript/dashboard/i18n/locale/en/conversation.json
-@@ -369,2 +369,4 @@
+@@ -392,2 +392,4 @@
        "SHOPIFY_ORDERS": "Shopify Orders",
 +      "FIREBASE_PROFILE": "App profile",
 +      "EYE_PHOTO": "Eye.photo data",
        "SHARED_FILES": "Attachments"
-@@ -400,2 +402,34 @@
+@@ -424,2 +426,34 @@
        }
 +    },
 +    "FIREBASE_PROFILE": {
@@ -603,7 +603,7 @@ index a922473c6..831ec8249 100644
 +      "EYE_PHOTO": "Assign an admin-scoped Eye.photo API key to an inbox to show studios associated with a contact’s email."
      }
 diff --git a/app/javascript/dashboard/routes/dashboard/conversation/ContactPanel.vue b/app/javascript/dashboard/routes/dashboard/conversation/ContactPanel.vue
-index fe95f9e99..4ed8a0cfb 100644
+index 05bb9acab..05cce8126 100644
 --- a/app/javascript/dashboard/routes/dashboard/conversation/ContactPanel.vue
 +++ b/app/javascript/dashboard/routes/dashboard/conversation/ContactPanel.vue
 @@ -23,2 +23,4 @@ import MacrosList from './Macros/List.vue';
@@ -750,15 +750,15 @@ index 893a08532..fb618e583 100644
 +    },
      submitButtonLabel() {
 diff --git a/app/javascript/dashboard/routes/dashboard/settings/integrations/SingleIntegrationHooks.vue b/app/javascript/dashboard/routes/dashboard/settings/integrations/SingleIntegrationHooks.vue
-index 405656542..19ecfd52c 100644
+index 14fec4996..9bb5656f3 100644
 --- a/app/javascript/dashboard/routes/dashboard/settings/integrations/SingleIntegrationHooks.vue
 +++ b/app/javascript/dashboard/routes/dashboard/settings/integrations/SingleIntegrationHooks.vue
-@@ -29,3 +29,3 @@ const { replaceInstallationName } = useBranding();
+@@ -28,3 +28,3 @@ const { replaceInstallationName } = useBranding();
          <img
 -          :src="`/dashboard/images/integrations/${integrationId}.png`"
 +          :src="`/dashboard/images/integrations/${integrationId}.png${integrationId === 'firebase_profile' ? '?v=2' : ''}`"
            class="max-w-full rounded-md border border-n-weak shadow-sm block dark:hidden bg-n-alpha-3 dark:bg-n-alpha-2"
-@@ -33,3 +33,3 @@ const { replaceInstallationName } = useBranding();
+@@ -32,3 +32,3 @@ const { replaceInstallationName } = useBranding();
          <img
 -          :src="`/dashboard/images/integrations/${integrationId}-dark.png`"
 +          :src="`/dashboard/images/integrations/${integrationId}-dark.png${integrationId === 'firebase_profile' ? '?v=2' : ''}`"
@@ -870,7 +870,7 @@ index 000000000..c87b471b9
 +  end
 +end
 diff --git a/app/views/layouts/vueapp.html.erb b/app/views/layouts/vueapp.html.erb
-index d97ece981..27a3ec2fd 100644
+index 954be9c29..96f1cdc93 100644
 --- a/app/views/layouts/vueapp.html.erb
 +++ b/app/views/layouts/vueapp.html.erb
 @@ -4,3 +4,3 @@
@@ -912,10 +912,10 @@ index d97ece981..27a3ec2fd 100644
 +    <link rel="icon" type="image/png" sizes="512x512" href="/favicon-512x512.png?v=eyepic-support-2">
      <%= csrf_meta_tags %>
 diff --git a/config/integration/apps.yml b/config/integration/apps.yml
-index 1a45cc098..49ebee824 100644
+index 9ef01ed30..c15568681 100644
 --- a/config/integration/apps.yml
 +++ b/config/integration/apps.yml
-@@ -243,2 +243,33 @@ shopify:
+@@ -248,2 +248,33 @@ shopify:
  
 +firebase_profile:
 +  id: firebase_profile
@@ -950,10 +950,10 @@ index 1a45cc098..49ebee824 100644
 +
  leadsquared:
 diff --git a/config/locales/en.yml b/config/locales/en.yml
-index dc2b4d3fe..45d0be9cc 100644
+index 826894466..062d513b0 100644
 --- a/config/locales/en.yml
 +++ b/config/locales/en.yml
-@@ -380,2 +380,10 @@ en:
+@@ -388,2 +388,10 @@ en:
        description: 'Connect your Shopify store to access order details, customer information, and product data directly within your conversations and helps your support team provide faster, more contextual assistance to your customers.'
 +    firebase_profile:
 +      name: 'Firebase Profile'
@@ -965,10 +965,10 @@ index dc2b4d3fe..45d0be9cc 100644
 +      description: 'Assign an Eye.photo admin API key to an inbox to securely look up studios associated with a conversation contact’s email.'
      leadsquared:
 diff --git a/config/routes.rb b/config/routes.rb
-index 01dab6a02..eb14b1a69 100644
+index f86e3f2cb..bf921ac64 100644
 --- a/config/routes.rb
 +++ b/config/routes.rb
-@@ -361,2 +361,4 @@ Rails.application.routes.draw do
+@@ -369,2 +369,4 @@ Rails.application.routes.draw do
              end
 +            get 'firebase_profile/show', to: 'firebase_profile#show'
 +            get 'eye_photo/show', to: 'eye_photo#show'
